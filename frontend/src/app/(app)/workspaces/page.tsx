@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CardSkeleton } from '@/components/ui/Skeleton';
+import { invalidateAfterWorkspaceCreate } from '@/lib/queryInvalidation';
 
 export default function WorkspacesPage() {
   const qc = useQueryClient();
@@ -30,7 +31,7 @@ export default function WorkspacesPage() {
   const createMutation = useMutation({
     mutationFn: () => workspaceService.create({ name, description }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['workspaces'] });
+      void invalidateAfterWorkspaceCreate(qc);
       toast.success('Workspace created');
       setOpen(false);
       setName('');

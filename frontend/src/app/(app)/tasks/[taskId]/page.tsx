@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { cn, selectClass, selectOptionClass } from '@/utils/cn';
+import { invalidateAfterTaskChange } from '@/lib/queryInvalidation';
 
 const STATUSES: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 const PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
@@ -44,7 +45,19 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const updateTask = useMutation({
     mutationFn: (data: Partial<import('@/types').Task>) => taskService.update(taskId, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['task', taskId] });
+      if (task) {
+        const projectId =
+          typeof task.project === 'object' && task.project !== null && '_id' in task.project
+            ? (task.project as { _id: string })._id
+            : String(task.project);
+        void invalidateAfterTaskChange(qc, {
+          projectId,
+          workspaceId: task.workspace,
+          taskId,
+        });
+      } else {
+        qc.invalidateQueries({ queryKey: ['task', taskId] });
+      }
       toast.success('Task updated');
     },
     onError: (e) => toast.error(getErrorMessage(e)),

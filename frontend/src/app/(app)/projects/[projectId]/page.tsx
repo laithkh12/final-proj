@@ -18,6 +18,7 @@ import { CardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CheckSquare } from 'lucide-react';
 import { selectClass, selectOptionClass } from '@/utils/cn';
+import { invalidateAfterTaskChange } from '@/lib/queryInvalidation';
 
 const TaskTable = dynamic(
   () => import('@/components/tasks/TaskTable').then((m) => m.TaskTable),
@@ -66,10 +67,17 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
     },
   });
 
+  const workspaceId = projectData?.project?.workspace;
+
   const createTask = useMutation({
     mutationFn: () => taskService.create(projectId, { title, priority }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tasks', projectId] });
+      if (workspaceId) {
+        void invalidateAfterTaskChange(qc, { projectId, workspaceId });
+      } else {
+        qc.invalidateQueries({ queryKey: ['tasks', projectId] });
+        qc.invalidateQueries({ queryKey: ['dashboard'] });
+      }
       toast.success('Task created');
       setOpen(false);
       setTitle('');
@@ -80,7 +88,13 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
       taskService.update(id, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', projectId] }),
+    onSuccess: (_data, { id }) => {
+      if (workspaceId) {
+        void invalidateAfterTaskChange(qc, { projectId, workspaceId, taskId: id });
+      } else {
+        qc.invalidateQueries({ queryKey: ['tasks', projectId] });
+      }
+    },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 

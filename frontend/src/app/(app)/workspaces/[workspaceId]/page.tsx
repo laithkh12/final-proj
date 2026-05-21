@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { invalidateAfterProjectCreate } from '@/lib/queryInvalidation';
 
 export default function WorkspaceDetailPage({
   params,
@@ -54,7 +55,7 @@ export default function WorkspaceDetailPage({
   const createProject = useMutation({
     mutationFn: () => projectService.create(workspaceId, { name: projectName }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['projects', workspaceId] });
+      void invalidateAfterProjectCreate(qc, workspaceId);
       toast.success('Project created');
       setProjectOpen(false);
       setProjectName('');
