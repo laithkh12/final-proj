@@ -1,0 +1,169 @@
+{
+  "info": {
+    "name": "TeamFlow API",
+    "description": "Full REST API collection for TeamFlow graduation project",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "workspaceId", "value": "" },
+    { "key": "projectId", "value": "" },
+    { "key": "taskId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@teamflow.dev\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?.token) pm.collectionVariables.set('token', json.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@teamflow.dev\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        { "name": "Get Me", "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" } },
+        { "name": "Logout", "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" } }
+      ]
+    },
+    {
+      "name": "Workspaces",
+      "item": [
+        { "name": "List Workspaces", "request": { "method": "GET", "url": "{{baseUrl}}/workspaces" } },
+        {
+          "name": "Create Workspace",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?._id) pm.collectionVariables.set('workspaceId', json.data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"My Team\",\n  \"description\": \"Main workspace\"\n}" },
+            "url": "{{baseUrl}}/workspaces"
+          }
+        },
+        { "name": "Get Workspace", "request": { "method": "GET", "url": "{{baseUrl}}/workspaces/{{workspaceId}}" } },
+        { "name": "Dashboard Stats", "request": { "method": "GET", "url": "{{baseUrl}}/workspaces/dashboard/stats" } },
+        { "name": "Activity Log", "request": { "method": "GET", "url": "{{baseUrl}}/workspaces/{{workspaceId}}/activity" } }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        { "name": "List Projects", "request": { "method": "GET", "url": "{{baseUrl}}/workspaces/{{workspaceId}}/projects" } },
+        {
+          "name": "Create Project",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?._id) pm.collectionVariables.set('projectId', json.data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sprint 1\",\n  \"color\": \"#6366f1\"\n}" },
+            "url": "{{baseUrl}}/workspaces/{{workspaceId}}/projects"
+          }
+        },
+        { "name": "Get Project", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}" } }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        { "name": "List Tasks", "request": { "method": "GET", "url": "{{baseUrl}}/projects/{{projectId}}/tasks?page=1&limit=10" } },
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data?._id) pm.collectionVariables.set('taskId', json.data._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Setup API\",\n  \"priority\": \"High\",\n  \"status\": \"Todo\"\n}" },
+            "url": "{{baseUrl}}/projects/{{projectId}}/tasks"
+          }
+        },
+        { "name": "Get Task", "request": { "method": "GET", "url": "{{baseUrl}}/tasks/{{taskId}}" } },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"In Progress\"\n}" },
+            "url": "{{baseUrl}}/tasks/{{taskId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Add Comment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Looks good!\"\n}" },
+            "url": "{{baseUrl}}/tasks/{{taskId}}/comments"
+          }
+        },
+        { "name": "List Comments", "request": { "method": "GET", "url": "{{baseUrl}}/tasks/{{taskId}}/comments" } }
+      ]
+    }
+  ]
+}
