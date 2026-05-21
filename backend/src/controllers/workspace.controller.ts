@@ -1,0 +1,186 @@
+import { Request, Response } from 'express';
+import { ActivityLog, Project, Task, User, Workspace, WorkspaceMember } from '../models';
+import { logActivity } from '../services/activity.service';
+import {
+  assertWorkspaceAdmin,
+  assertWorkspaceMember,
+  assertWorkspaceOwner,
+  getUserWorkspaceIds,
+} from '../services/workspaceAccess.service';
+import { asyncHandler } from '../utils/asyncHandler';
+import { sendSuccess } from '../utils/response';
+import { ApiError } from '../utils/ApiError';
+import { buildMeta, parsePagination } from '../helpers/pagination';
+import { getParam } from '../utils/params';
+
+const slugify = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') +
+  '-' +
+  Date.now().toString(36);
+
+export const getWorkspaces = asyncHandler(async (req: Request, res: Response) => {
+  const ids = await getUserWorkspaceIds(req.user!.userId);
+  const workspaces = await Workspace.find({ _id: { $in: ids } })
+    .populate('owner', 'name email avatar')
+    .sort({ updatedAt: -1 });
+  sendSuccess(res, workspaces);
+});
+
+export const createWorkspace = asyncHandler(async (req: Request, res: Response) => {
+  const { name, description } = req.body as { name: string; description?: string };
+  const workspace = await Workspace.create({
+    name,
+    description: description || '',
+    slug: slugify(name),
+    owner: req.user!.userId,
+  });
+
+  await WorkspaceMember.create({
+    workspace: workspace._id,
+    user: req.user!.userId,
+    role: 'owner',
+    invitedBy: req.user!.userId,
+  });
+
+  await logActivity({
+    workspaceId: workspace._id,
+    userId: req.user!.userId,
+    type: 'workspace_created',
+    message: `Created workspace "${workspace.name}"`,
+    entityType: 'workspace',
+    entityId: workspace._id,
+  });
+
+  sendSuccess(res, workspace, 201, 'Workspace created');
+});
+
+export const getWorkspace = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req, 'id');
+  await assertWorkspaceMember(id, req.user!.userId);
+  const workspace = await Workspace.findById(id).populate('owner', 'name email avatar');
+  if (!workspace) throw new ApiError(404, 'Workspace not found');
+
+  const members = await WorkspaceMember.find({ workspace: workspace._id })
+    .populate('user', 'name email avatar')
+    .populate('invitedBy', 'name email');
+
+  const projectCount = await Project.countDocuments({ workspace: workspace._id });
+  const taskCount = await Task.countDocuments({ workspace: workspace._id });
+
+  sendSuccess(res, { workspace, members, stats: { projectCount, taskCount } });
+});
+
+export const updateWorkspace = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req, 'id');
+  await assertWorkspaceAdmin(id, req.user!.userId);
+  const workspace = await Workspace.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!workspace) throw new ApiError(404, 'Workspace not found');
+
+  await logActivity({
+    workspaceId: workspace._id,
+    userId: req.user!.userId,
+    type: 'workspace_updated',
+    message: `Updated workspace "${workspace.name}"`,
+    entityType: 'workspace',
+    entityId: workspace._id,
+  });
+
+  sendSuccess(res, workspace, 200, 'Workspace updated');
+});
+
+export const deleteWorkspace = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req, 'id');
+  await assertWorkspaceOwner(id, req.user!.userId);
+  const workspace = await Workspace.findByIdAndDelete(id);
+  if (!workspace) throw new ApiError(404, 'Workspace not found');
+
+  await WorkspaceMember.deleteMany({ workspace: workspace._id });
+  await Project.deleteMany({ workspace: workspace._id });
+  await Task.deleteMany({ workspace: workspace._id });
+  await ActivityLog.deleteMany({ workspace: workspace._id });
+
+  sendSuccess(res, null, 200, 'Workspace deleted');
+});
+
+export const inviteMember = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req, 'id');
+  await assertWorkspaceAdmin(id, req.user!.userId);
+  const { email, role = 'member' } = req.body as { email: string; role?: string };
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(404, 'User not found. They must sign up first.');
+
+  const existing = await WorkspaceMember.findOne({ workspace: id, user: user._id });
+  if (existing) throw new ApiError(400, 'User is already a member');
+
+  const member = await WorkspaceMember.create({
+    workspace: id,
+    user: user._id,
+    role: role as 'member' | 'admin',
+    invitedBy: req.user!.userId,
+  });
+
+  await logActivity({
+    workspaceId: id,
+    userId: req.user!.userId,
+    type: 'member_invited',
+    message: `Invited ${user.name} to the workspace`,
+    entityType: 'member',
+    entityId: user._id,
+  });
+
+  const populated = await member.populate('user', 'name email avatar');
+  sendSuccess(res, populated, 201, 'Member invited');
+});
+
+export const getActivity = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req, 'id');
+  await assertWorkspaceMember(id, req.user!.userId);
+  const { page, limit, skip } = parsePagination(req.query);
+
+  const filter = { workspace: id };
+  const [logs, total] = await Promise.all([
+    ActivityLog.find(filter)
+      .populate('user', 'name email avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    ActivityLog.countDocuments(filter),
+  ]);
+
+  sendSuccess(res, logs, 200, undefined, buildMeta(page, limit, total));
+});
+
+export const getDashboardStats = asyncHandler(async (req: Request, res: Response) => {
+  const ids = await getUserWorkspaceIds(req.user!.userId);
+
+  const [taskStats, projectCount, recentActivity] = await Promise.all([
+    Task.aggregate([
+      { $match: { workspace: { $in: ids } } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    Project.countDocuments({ workspace: { $in: ids } }),
+    ActivityLog.find({ workspace: { $in: ids } })
+      .populate('user', 'name avatar')
+      .populate('workspace', 'name')
+      .sort({ createdAt: -1 })
+      .limit(10),
+  ]);
+
+  const tasksByStatus = Object.fromEntries(taskStats.map((s) => [s._id, s.count]));
+  const totalTasks = taskStats.reduce((sum, s) => sum + s.count, 0);
+
+  sendSuccess(res, {
+    totalTasks,
+    tasksByStatus,
+    projectCount,
+    workspaceCount: ids.length,
+    recentActivity,
+  });
+});
