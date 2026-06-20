@@ -59,7 +59,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   );
 
   const { data: projectData } = useQuery({
-    queryKey: ['project', projectId],
+    queryKey: queryKeys.projectDetail(projectId),
     queryFn: async () => {
       const res = await projectService.get(projectId);
       return res.data.data!;
@@ -75,6 +75,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   });
 
   const workspaceId = projectData?.project?.workspace;
+  const isAdmin = projectData?.myRole === 'owner' || projectData?.myRole === 'admin';
 
   const createTask = useMutation({
     mutationFn: () => taskService.create(projectId, { title, priority }),
@@ -113,7 +114,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         color: editColor,
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project', projectId] });
+      qc.invalidateQueries({ queryKey: queryKeys.project(projectId) });
       if (workspaceId) {
         qc.invalidateQueries({ queryKey: queryKeys.projects(workspaceId) });
       }
@@ -166,12 +167,16 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           <p className="text-slate-500">{project?.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={openEditModal}>
-            <Pencil className="mr-2 h-4 w-4" /> Edit
-          </Button>
-          <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
-          </Button>
+          {isAdmin && (
+            <Button variant="secondary" onClick={openEditModal}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          )}
           <Button onClick={() => setOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> New task
           </Button>

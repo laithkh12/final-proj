@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Comment, Task } from '../models';
+import { Comment, ITask, Task } from '../models';
 import { logActivity } from '../services/activity.service';
 import { assertWorkspaceMember } from '../services/workspaceAccess.service';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -44,24 +44,27 @@ export const createComment = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const deleteComment = asyncHandler(async (req: Request, res: Response) => {
-  const comment = await Comment.findById(getParam(req, 'id')).populate('task');
+  const comment = await Comment.findById(getParam(req, 'id')).populate<{ task: ITask }>('task');
   if (!comment) throw new ApiError(404, 'Comment not found');
 
-  const taskDoc = await Task.findById(comment.task);
-  if (!taskDoc) throw new ApiError(404, 'Task not found');
+  const taskDoc = comment.task;
+  if (!taskDoc?.workspace) throw new ApiError(404, 'Task not found');
   await assertWorkspaceMember(taskDoc.workspace.toString(), req.user!.userId);
+
+  if (comment.author.toString() !== req.user!.userId) {
+    throw new ApiError(403, 'You can only delete your own comments');
+  }
+
   await comment.deleteOne();
 
-  if (taskDoc) {
-    await logActivity({
-      workspaceId: taskDoc.workspace,
-      userId: req.user!.userId,
-      type: 'comment_deleted',
-      message: `Deleted a comment on "${taskDoc.title}"`,
-      entityType: 'comment',
-      entityId: comment._id,
-    });
-  }
+  await logActivity({
+    workspaceId: taskDoc.workspace,
+    userId: req.user!.userId,
+    type: 'comment_deleted',
+    message: `Deleted a comment on "${taskDoc.title}"`,
+    entityType: 'comment',
+    entityId: comment._id,
+  });
 
   sendSuccess(res, null, 200, 'Comment deleted');
 });

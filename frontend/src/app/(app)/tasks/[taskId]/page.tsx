@@ -33,13 +33,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
-  const { data: task, isLoading } = useQuery({
+  const { data: taskData, isLoading } = useQuery({
     queryKey: ['task', taskId],
     queryFn: async () => {
       const res = await taskService.get(taskId);
       return res.data.data!;
     },
   });
+
+  const task = taskData?.task;
+  const isAdmin = taskData?.myRole === 'owner' || taskData?.myRole === 'admin';
 
   const workspaceId = task
     ? typeof task.workspace === 'object' && task.workspace !== null && '_id' in task.workspace
@@ -147,9 +150,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         <Link href={`/projects/${projectId}`} className="text-sm text-indigo-600 hover:underline">
           ← Back to project
         </Link>
-        <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" /> Delete task
-        </Button>
+        {isAdmin && (
+          <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete task
+          </Button>
+        )}
       </div>
 
       <div className="mt-4 space-y-4">
@@ -237,7 +242,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
             type="date"
             value={task.dueDate ? task.dueDate.split('T')[0] : ''}
             onChange={(e) =>
-              updateTask.mutate({ dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined })
+              updateTask.mutate({
+                dueDate: e.target.value ? `${e.target.value}T12:00:00.000Z` : null,
+              })
             }
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           />

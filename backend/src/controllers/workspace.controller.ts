@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ActivityLog, Project, Task, TeamMember, User, Workspace, WorkspaceMember } from '../models';
+import { ActivityLog, Comment, Project, Task, TeamMember, User, Workspace, WorkspaceMember } from '../models';
 import { logActivity } from '../services/activity.service';
 import { seedDefaultTeamMembers } from '../services/teamMember.service';
 import {
@@ -15,6 +15,7 @@ import { sendSuccess } from '../utils/response';
 import { ApiError } from '../utils/ApiError';
 import { buildMeta, parsePagination } from '../helpers/pagination';
 import { getParam } from '../utils/params';
+import { withOptionalTransaction } from '../utils/withTransaction';
 
 const slugify = (name: string): string =>
   name
@@ -119,22 +120,38 @@ export const updateWorkspace = asyncHandler(async (req: Request, res: Response) 
 export const deleteWorkspace = asyncHandler(async (req: Request, res: Response) => {
   const id = getParam(req, 'id');
   await assertWorkspaceOwner(id, req.user!.userId);
-  const workspace = await Workspace.findByIdAndDelete(id);
+  const workspace = await Workspace.findById(id);
   if (!workspace) throw new ApiError(404, 'Workspace not found');
 
-  await WorkspaceMember.deleteMany({ workspace: workspace._id });
-  await TeamMember.deleteMany({ workspace: workspace._id });
-  await Project.deleteMany({ workspace: workspace._id });
-  await Task.deleteMany({ workspace: workspace._id });
-  await ActivityLog.deleteMany({ workspace: workspace._id });
+  const workspaceId = workspace._id;
+
+  await withOptionalTransaction(async (session) => {
+    const opts = session ? { session } : {};
+    const taskIds = session
+      ? await Task.distinct('_id', { workspace: workspaceId }).session(session)
+      : await Task.find({ workspace: workspaceId }).distinct('_id');
+    if (taskIds.length > 0) {
+      await Comment.deleteMany({ task: { $in: taskIds } }, opts);
+    }
+    await Task.deleteMany({ workspace: workspaceId }, opts);
+    await Project.deleteMany({ workspace: workspaceId }, opts);
+    await WorkspaceMember.deleteMany({ workspace: workspaceId }, opts);
+    await TeamMember.deleteMany({ workspace: workspaceId }, opts);
+    await ActivityLog.deleteMany({ workspace: workspaceId }, opts);
+    await Workspace.deleteOne({ _id: workspaceId }, opts);
+  });
 
   sendSuccess(res, null, 200, 'Workspace deleted');
 });
 
 export const inviteMember = asyncHandler(async (req: Request, res: Response) => {
   const id = getParam(req, 'id');
-  await assertWorkspaceAdmin(id, req.user!.userId);
+  const actorMembership = await assertWorkspaceAdmin(id, req.user!.userId);
   const { email, role = 'member' } = req.body as { email: string; role?: string };
+
+  if (role === 'admin' && actorMembership.role !== 'owner') {
+    throw new ApiError(403, 'Only the workspace owner can invite admins');
+  }
 
   const user = await User.findOne({ email });
   if (!user) throw new ApiError(404, 'User not found. They must sign up first.');
@@ -174,6 +191,9 @@ export const removeMember = asyncHandler(async (req: Request, res: Response) => 
   }).populate('user', 'name email avatar');
 
   if (!targetMembership) throw new ApiError(404, 'Member not found');
+  if (targetUserId === req.user!.userId) {
+    throw new ApiError(403, 'You cannot remove yourself');
+  }
   if (targetMembership.role === 'owner') {
     throw new ApiError(403, 'Cannot remove the workspace owner');
   }

@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
-import { Project, Task } from '../models';
+import { Comment, Project, Task } from '../models';
 import { getParam } from '../utils/params';
 import { logActivity } from '../services/activity.service';
 import { assertAssigneeInWorkspace } from '../services/teamMember.service';
-import { assertWorkspaceMember } from '../services/workspaceAccess.service';
+import { assertWorkspaceAdmin, assertWorkspaceMember } from '../services/workspaceAccess.service';
 import { buildMeta, parsePagination } from '../helpers/pagination';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { ApiError } from '../utils/ApiError';
+import { withOptionalTransaction } from '../utils/withTransaction';
 
 const pickTaskCreateFields = (body: Record<string, unknown>) => {
   const fields: Record<string, unknown> = { title: body.title };
@@ -98,8 +99,8 @@ export const getTask = asyncHandler(async (req: Request, res: Response) => {
     .populate('createdBy', 'name email avatar')
     .populate('project', 'name');
   if (!task) throw new ApiError(404, 'Task not found');
-  await assertWorkspaceMember(task.workspace.toString(), req.user!.userId);
-  sendSuccess(res, task);
+  const membership = await assertWorkspaceMember(task.workspace.toString(), req.user!.userId);
+  sendSuccess(res, { task, myRole: membership.role });
 });
 
 export const updateTask = asyncHandler(async (req: Request, res: Response) => {
@@ -112,7 +113,10 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const updates = pickTaskUpdateFields(req.body as Record<string, unknown>);
-  if (Object.keys(updates).length === 0) {
+  const clearDueDate = 'dueDate' in updates && updates.dueDate === null;
+  if (clearDueDate) delete updates.dueDate;
+
+  if (Object.keys(updates).length === 0 && !clearDueDate) {
     const populated = await task.populate([
       { path: 'assignee', select: 'name email avatar role' },
       { path: 'createdBy', select: 'name email avatar' },
@@ -121,20 +125,27 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
     return;
   }
 
-  Object.assign(task, updates);
-  await task.save();
+  const updateDoc: Record<string, unknown> = {};
+  if (Object.keys(updates).length > 0) updateDoc.$set = updates;
+  if (clearDueDate) updateDoc.$unset = { dueDate: 1 };
+
+  const updated = await Task.findByIdAndUpdate(task._id, updateDoc, {
+    new: true,
+    runValidators: true,
+  });
+  if (!updated) throw new ApiError(404, 'Task not found');
 
   await logActivity({
-    workspaceId: task.workspace,
+    workspaceId: updated.workspace,
     userId: req.user!.userId,
     type: 'task_updated',
-    message: `Updated task "${task.title}"`,
+    message: `Updated task "${updated.title}"`,
     entityType: 'task',
-    entityId: task._id,
-    metadata: updates,
+    entityId: updated._id,
+    metadata: { ...updates, ...(clearDueDate ? { dueDate: null } : {}) },
   });
 
-  const populated = await task.populate([
+  const populated = await updated.populate([
     { path: 'assignee', select: 'name email avatar role' },
     { path: 'createdBy', select: 'name email avatar' },
   ]);
@@ -145,17 +156,24 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
 export const deleteTask = asyncHandler(async (req: Request, res: Response) => {
   const task = await Task.findById(getParam(req, 'id'));
   if (!task) throw new ApiError(404, 'Task not found');
-  await assertWorkspaceMember(task.workspace.toString(), req.user!.userId);
+  await assertWorkspaceAdmin(task.workspace.toString(), req.user!.userId);
 
-  await logActivity({
-    workspaceId: task.workspace,
-    userId: req.user!.userId,
-    type: 'task_deleted',
-    message: `Deleted task "${task.title}"`,
-    entityType: 'task',
-    entityId: task._id,
+  const { _id: taskId, workspace: workspaceId, title: taskTitle } = task;
+
+  await withOptionalTransaction(async (session) => {
+    const opts = session ? { session } : {};
+    await Comment.deleteMany({ task: taskId }, opts);
+    await Task.deleteOne({ _id: taskId }, opts);
   });
 
-  await task.deleteOne();
+  await logActivity({
+    workspaceId,
+    userId: req.user!.userId,
+    type: 'task_deleted',
+    message: `Deleted task "${taskTitle}"`,
+    entityType: 'task',
+    entityId: taskId,
+  });
+
   sendSuccess(res, null, 200, 'Task deleted');
 });

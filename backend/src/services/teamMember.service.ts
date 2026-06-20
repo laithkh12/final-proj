@@ -31,9 +31,19 @@ export const DEFAULT_TEAM_MEMBERS = [
 
 export async function seedDefaultTeamMembers(workspaceId: Types.ObjectId | string) {
   for (const demo of DEFAULT_TEAM_MEMBERS) {
-    const exists = await TeamMember.findOne({ workspace: workspaceId, email: demo.email });
-    if (exists) continue;
-    await TeamMember.create({ ...demo, workspace: workspaceId });
+    try {
+      await TeamMember.create({ ...demo, workspace: workspaceId });
+    } catch (err) {
+      if ((err as { code?: number }).code !== 11000) throw err;
+    }
+  }
+}
+
+/** Seeds demo team members for workspaces missing any defaults (e.g. legacy data). */
+export async function ensureDefaultTeamMembers(workspaceId: Types.ObjectId | string) {
+  const count = await TeamMember.countDocuments({ workspace: workspaceId });
+  if (count < DEFAULT_TEAM_MEMBERS.length) {
+    await seedDefaultTeamMembers(workspaceId);
   }
 }
 
