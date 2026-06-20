@@ -1,10 +1,22 @@
 import axios, { AxiosError } from 'axios';
 import type { ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+function getApiBaseUrl(): string {
+  // Browser always uses same-origin /api (Vercel rewrite → Render in prod, Next proxy in dev)
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+
+  const proxy = process.env.API_PROXY_URL?.replace(/\/$/, '');
+  if (proxy) {
+    return `${proxy}/api`;
+  }
+
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+}
 
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
