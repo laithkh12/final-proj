@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   DashboardStats,
   PaginationMeta,
+  TeamMember,
   Workspace,
   WorkspaceMember,
 } from '@/types';
@@ -25,6 +26,9 @@ export const workspaceService = {
   remove: (id: string) => api.delete<ApiResponse<null>>(`/workspaces/${id}`),
   invite: (id: string, data: { email: string; role?: string }) =>
     api.post<ApiResponse<WorkspaceMember>>(`/workspaces/${id}/members`, data),
+  removeMember: (workspaceId: string, userId: string) =>
+    api.delete<ApiResponse<null>>(`/workspaces/${workspaceId}/members/${userId}`),
+  teamMembers: (id: string) => api.get<ApiResponse<TeamMember[]>>(`/workspaces/${id}/team-members`),
   activity: (id: string, params?: { page?: number; limit?: number }) =>
     api.get<ApiResponse<ActivityLog[]>>(`/workspaces/${id}/activity`, { params }),
   dashboard: () => api.get<ApiResponse<DashboardStats>>('/workspaces/dashboard/stats'),

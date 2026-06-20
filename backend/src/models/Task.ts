@@ -24,7 +24,7 @@ const taskSchema = new Schema<ITask>(
     workspace: { type: Schema.Types.ObjectId, ref: 'Workspace', required: true, index: true },
     status: { type: String, enum: TASK_STATUSES, default: 'Todo', index: true },
     priority: { type: String, enum: TASK_PRIORITIES, default: 'Medium' },
-    assignee: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    assignee: { type: Schema.Types.ObjectId, ref: 'TeamMember', index: true },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     dueDate: { type: Date },
   },

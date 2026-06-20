@@ -37,6 +37,8 @@
 | PATCH | `/workspaces/:id` | Yes | Update workspace |
 | DELETE | `/workspaces/:id` | Yes | Delete (owner only) |
 | POST | `/workspaces/:id/members` | Yes | Invite `{ email, role? }` |
+| DELETE | `/workspaces/:id/members/:userId` | Yes | Remove member (admin/owner) |
+| GET | `/workspaces/:id/team-members` | Yes | List assignable team roster |
 | GET | `/workspaces/:id/activity` | Yes | Activity log (paginated) |
 | GET | `/workspaces/dashboard/stats` | Yes | Dashboard aggregates |
 
@@ -57,7 +59,7 @@
 | GET | `/projects/:projectId/tasks` | Yes | `page`, `limit`, `status`, `priority`, `search` |
 | POST | `/projects/:projectId/tasks` | Yes | body: task fields |
 | GET | `/tasks/:id` | Yes | — |
-| PATCH | `/tasks/:id` | Yes | — |
+| PATCH | `/tasks/:id` | Yes | body may include `assignee` (team member id in same workspace, or null) |
 | DELETE | `/tasks/:id` | Yes | — |
 
 ## Comments

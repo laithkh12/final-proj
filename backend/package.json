@@ -7,6 +7,8 @@
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/server.js",
+    "seed:team-members": "ts-node src/scripts/seed-team-members.ts",
+    "migrate:task-assignees": "ts-node src/scripts/migrate-task-assignees.ts",
     "lint": "echo \"Add eslint if needed\""
   },
   "keywords": ["teamflow", "project-management", "express", "mongodb"],

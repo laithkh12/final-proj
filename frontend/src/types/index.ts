@@ -12,6 +12,17 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface TeamMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string;
+  workspace: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Workspace {
   _id: string;
   name: string;
@@ -50,7 +61,7 @@ export interface Task {
   workspace: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assignee?: User | string;
+  assignee?: TeamMember | string;
   createdBy: User | string;
   dueDate?: string;
   createdAt: string;

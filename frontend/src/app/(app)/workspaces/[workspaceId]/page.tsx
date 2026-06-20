@@ -3,18 +3,23 @@
 import { use, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { FolderKanban, Plus, UserPlus } from 'lucide-react';
+import { FolderKanban, Pencil, Plus, Trash2, UserPlus, UserMinus } from 'lucide-react';
 import { workspaceService } from '@/services/workspace.service';
 import { projectService } from '@/services/project.service';
 import { getErrorMessage } from '@/services/api';
+import type { MemberRole } from '@/types';
+import { useAuthStore } from '@/store/authStore';
+import { canRemoveMember } from '@/utils/memberAccess';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { invalidateAfterProjectCreate } from '@/lib/queryInvalidation';
+import { queryKeys } from '@/lib/queryInvalidation';
 
 export default function WorkspaceDetailPage({
   params,
@@ -22,11 +27,19 @@ export default function WorkspaceDetailPage({
   params: Promise<{ workspaceId: string }>;
 }) {
   const { workspaceId } = use(params);
+  const router = useRouter();
   const qc = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
   const [projectOpen, setProjectOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [removeMemberOpen, setRemoveMemberOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
   const [projectName, setProjectName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['workspace', workspaceId],
@@ -74,9 +87,57 @@ export default function WorkspaceDetailPage({
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
+  const updateWorkspace = useMutation({
+    mutationFn: () => workspaceService.update(workspaceId, { name: editName, description: editDescription }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', workspaceId] });
+      qc.invalidateQueries({ queryKey: queryKeys.workspaces });
+      toast.success('Workspace updated');
+      setEditOpen(false);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const deleteWorkspace = useMutation({
+    mutationFn: () => workspaceService.remove(workspaceId),
+    onSuccess: () => {
+      void Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.workspaces }),
+        qc.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      ]);
+      toast.success('Workspace deleted');
+      router.push('/workspaces');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const removeMember = useMutation({
+    mutationFn: (userId: string) => workspaceService.removeMember(workspaceId, userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['workspace', workspaceId] });
+      qc.invalidateQueries({ queryKey: ['activity', workspaceId] });
+      toast.success('Member removed');
+      setRemoveMemberOpen(false);
+      setMemberToRemove(null);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
   if (isLoading) return <CardSkeleton />;
 
   const { workspace, members, stats } = data!;
+  const myMembership = members.find((m) => m.user._id === currentUser?._id);
+  const myRole = myMembership?.role;
+  const isAdmin = myRole === 'owner' || myRole === 'admin';
+  const isOwner =
+    myRole === 'owner' ||
+    (typeof workspace.owner === 'object' && workspace.owner._id === currentUser?._id);
+
+  const openEditModal = () => {
+    setEditName(workspace.name);
+    setEditDescription(workspace.description || '');
+    setEditOpen(true);
+  };
 
   return (
     <div>
@@ -88,10 +149,22 @@ export default function WorkspaceDetailPage({
             {stats.projectCount} projects · {stats.taskCount} tasks · {members.length} members
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setInviteOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" /> Invite
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <Button variant="secondary" onClick={openEditModal}>
+              <Pencil className="mr-2 h-4 w-4" /> Edit
+            </Button>
+          )}
+          {isOwner && (
+            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="secondary" onClick={() => setInviteOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" /> Invite
+            </Button>
+          )}
           <Button onClick={() => setProjectOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> New project
           </Button>
@@ -131,12 +204,31 @@ export default function WorkspaceDetailPage({
         <div>
           <h2 className="mb-4 font-semibold">Members</h2>
           <ul className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-            {members.map((m) => (
-              <li key={m._id} className="flex items-center justify-between text-sm">
-                <span>{typeof m.user === 'object' ? m.user.name : 'Member'}</span>
-                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{m.role}</span>
-              </li>
-            ))}
+            {members.map((m) => {
+              const canRemove =
+                myRole && canRemoveMember(myRole as MemberRole, m.role) && m.user._id !== currentUser?._id;
+              return (
+                <li key={m._id} className="flex items-center justify-between gap-2 text-sm">
+                  <span>{m.user.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">{m.role}</span>
+                    {canRemove && (
+                      <button
+                        onClick={() => {
+                          setMemberToRemove({ id: m.user._id, name: m.user.name });
+                          setRemoveMemberOpen(true);
+                        }}
+                        disabled={removeMember.isPending}
+                        className="text-red-500 hover:text-red-700"
+                        title="Remove member"
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
 
           <h2 className="mb-4 mt-6 font-semibold">Activity</h2>
@@ -188,6 +280,79 @@ export default function WorkspaceDetailPage({
             Invite
           </Button>
         </form>
+      </Modal>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit workspace">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            updateWorkspace.mutate();
+          }}
+          className="space-y-4"
+        >
+          <Input label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+          <Input
+            label="Description"
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+          />
+          <Button type="submit" loading={updateWorkspace.isPending} className="w-full">
+            Save changes
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete workspace">
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+          Are you sure you want to delete <strong>{workspace.name}</strong>? This will permanently remove all
+          projects, tasks, and activity in this workspace.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setDeleteOpen(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={deleteWorkspace.isPending}
+            onClick={() => deleteWorkspace.mutate()}
+            className="flex-1"
+          >
+            Delete workspace
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={removeMemberOpen}
+        onClose={() => {
+          setRemoveMemberOpen(false);
+          setMemberToRemove(null);
+        }}
+        title="Remove member"
+      >
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+          Remove <strong>{memberToRemove?.name}</strong> from this workspace? They will lose access immediately.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setRemoveMemberOpen(false);
+              setMemberToRemove(null);
+            }}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={removeMember.isPending}
+            onClick={() => memberToRemove && removeMember.mutate(memberToRemove.id)}
+            className="flex-1"
+          >
+            Remove member
+          </Button>
+        </div>
       </Modal>
     </div>
   );

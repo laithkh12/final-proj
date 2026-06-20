@@ -34,7 +34,7 @@ See [wireframes.md](./wireframes.md) for ASCII wireframes of all primary screens
 
 See [erd.md](./erd.md) for the full entity-relationship diagram and field definitions.
 
-**Entities:** User, Workspace, WorkspaceMember, Project, Task, Comment, ActivityLog
+**Entities:** User, Workspace, WorkspaceMember, TeamMember, Project, Task, Comment, ActivityLog
 
 ---
 
@@ -54,7 +54,7 @@ See [api-endpoints.md](./api-endpoints.md) for the complete REST API reference.
 |-------|-------|
 | Auth | 4 |
 | Users | 2 |
-| Workspaces | 7 |
+| Workspaces | 10 |
 | Projects | 5 |
 | Tasks | 5 |
 | Comments | 3 |
@@ -110,3 +110,11 @@ See [api-endpoints.md](./api-endpoints.md) for the complete REST API reference.
 | Performance (5 techniques) | ✅ |
 | Authentication | ✅ Custom JWT + bcrypt |
 | API documentation | ✅ Swagger + Postman + README |
+
+---
+
+## 9. Team roster (assignees)
+
+Task assignees reference the **`team_members`** collection (not login `users`). Each new workspace is auto-seeded with four demo members (Alice, Bob, Carol, David) for assignment in the UI.
+
+Custom team members beyond the seed roster are **not** managed via the app UI in this version; use `npm run seed:team-members` or extend the API for production use.

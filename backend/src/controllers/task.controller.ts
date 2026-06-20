@@ -2,11 +2,33 @@ import { Request, Response } from 'express';
 import { Project, Task } from '../models';
 import { getParam } from '../utils/params';
 import { logActivity } from '../services/activity.service';
+import { assertAssigneeInWorkspace } from '../services/teamMember.service';
 import { assertWorkspaceMember } from '../services/workspaceAccess.service';
 import { buildMeta, parsePagination } from '../helpers/pagination';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { ApiError } from '../utils/ApiError';
+
+const pickTaskCreateFields = (body: Record<string, unknown>) => {
+  const fields: Record<string, unknown> = { title: body.title };
+  if (body.description !== undefined) fields.description = body.description;
+  if (body.status !== undefined) fields.status = body.status;
+  if (body.priority !== undefined) fields.priority = body.priority;
+  if (body.assignee !== undefined) fields.assignee = body.assignee;
+  if (body.dueDate !== undefined) fields.dueDate = body.dueDate;
+  return fields;
+};
+
+const pickTaskUpdateFields = (body: Record<string, unknown>) => {
+  const fields: Record<string, unknown> = {};
+  if (body.title !== undefined) fields.title = body.title;
+  if (body.description !== undefined) fields.description = body.description;
+  if (body.status !== undefined) fields.status = body.status;
+  if (body.priority !== undefined) fields.priority = body.priority;
+  if (body.assignee !== undefined) fields.assignee = body.assignee;
+  if (body.dueDate !== undefined) fields.dueDate = body.dueDate;
+  return fields;
+};
 
 export const getTasks = asyncHandler(async (req: Request, res: Response) => {
   const projectId = getParam(req, 'projectId');
@@ -25,7 +47,7 @@ export const getTasks = asyncHandler(async (req: Request, res: Response) => {
 
   const [tasks, total] = await Promise.all([
     Task.find(filter)
-      .populate('assignee', 'name email avatar')
+      .populate('assignee', 'name email avatar role')
       .populate('createdBy', 'name email avatar')
       .sort({ updatedAt: -1 })
       .skip(skip)
@@ -42,8 +64,12 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
   if (!project) throw new ApiError(404, 'Project not found');
   await assertWorkspaceMember(project.workspace.toString(), req.user!.userId);
 
+  if (req.body.assignee !== undefined) {
+    await assertAssigneeInWorkspace(req.body.assignee, project.workspace);
+  }
+
   const task = await Task.create({
-    ...req.body,
+    ...pickTaskCreateFields(req.body as Record<string, unknown>),
     project: project._id,
     workspace: project.workspace,
     createdBy: req.user!.userId,
@@ -59,7 +85,7 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const populated = await task.populate([
-    { path: 'assignee', select: 'name email avatar' },
+    { path: 'assignee', select: 'name email avatar role' },
     { path: 'createdBy', select: 'name email avatar' },
   ]);
 
@@ -68,7 +94,7 @@ export const createTask = asyncHandler(async (req: Request, res: Response) => {
 
 export const getTask = asyncHandler(async (req: Request, res: Response) => {
   const task = await Task.findById(getParam(req, 'id'))
-    .populate('assignee', 'name email avatar')
+    .populate('assignee', 'name email avatar role')
     .populate('createdBy', 'name email avatar')
     .populate('project', 'name');
   if (!task) throw new ApiError(404, 'Task not found');
@@ -81,7 +107,21 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
   if (!task) throw new ApiError(404, 'Task not found');
   await assertWorkspaceMember(task.workspace.toString(), req.user!.userId);
 
-  Object.assign(task, req.body);
+  if (req.body.assignee !== undefined) {
+    await assertAssigneeInWorkspace(req.body.assignee, task.workspace);
+  }
+
+  const updates = pickTaskUpdateFields(req.body as Record<string, unknown>);
+  if (Object.keys(updates).length === 0) {
+    const populated = await task.populate([
+      { path: 'assignee', select: 'name email avatar role' },
+      { path: 'createdBy', select: 'name email avatar' },
+    ]);
+    sendSuccess(res, populated, 200, 'No changes');
+    return;
+  }
+
+  Object.assign(task, updates);
   await task.save();
 
   await logActivity({
@@ -91,11 +131,11 @@ export const updateTask = asyncHandler(async (req: Request, res: Response) => {
     message: `Updated task "${task.title}"`,
     entityType: 'task',
     entityId: task._id,
-    metadata: req.body as Record<string, unknown>,
+    metadata: updates,
   });
 
   const populated = await task.populate([
-    { path: 'assignee', select: 'name email avatar' },
+    { path: 'assignee', select: 'name email avatar role' },
     { path: 'createdBy', select: 'name email avatar' },
   ]);
 

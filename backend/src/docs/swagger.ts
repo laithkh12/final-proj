@@ -39,6 +39,17 @@ const options: swaggerJsdoc.Options = {
             bio: { type: 'string' },
           },
         },
+        TeamMember: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string' },
+            name: { type: 'string' },
+            email: { type: 'string' },
+            role: { type: 'string' },
+            avatar: { type: 'string' },
+            workspace: { type: 'string' },
+          },
+        },
         ApiResponse: {
           type: 'object',
           properties: {

@@ -7,6 +7,14 @@ import { sendSuccess } from '../utils/response';
 import { ApiError } from '../utils/ApiError';
 import { getParam } from '../utils/params';
 
+const pickProjectUpdateFields = (body: Record<string, unknown>) => {
+  const fields: Record<string, unknown> = {};
+  if (body.name !== undefined) fields.name = body.name;
+  if (body.description !== undefined) fields.description = body.description;
+  if (body.color !== undefined) fields.color = body.color;
+  return fields;
+};
+
 export const getProjects = asyncHandler(async (req: Request, res: Response) => {
   const workspaceId = getParam(req, 'workspaceId');
   await assertWorkspaceMember(workspaceId, req.user!.userId);
@@ -72,7 +80,13 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
   if (!project) throw new ApiError(404, 'Project not found');
   await assertWorkspaceMember(project.workspace.toString(), req.user!.userId);
 
-  Object.assign(project, req.body);
+  const updates = pickProjectUpdateFields(req.body as Record<string, unknown>);
+  if (Object.keys(updates).length === 0) {
+    sendSuccess(res, project, 200, 'No changes');
+    return;
+  }
+
+  Object.assign(project, updates);
   await project.save();
 
   await logActivity({
@@ -82,6 +96,7 @@ export const updateProject = asyncHandler(async (req: Request, res: Response) =>
     message: `Updated project "${project.name}"`,
     entityType: 'project',
     entityId: project._id,
+    metadata: updates,
   });
 
   sendSuccess(res, project, 200, 'Project updated');

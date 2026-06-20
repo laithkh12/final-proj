@@ -4,8 +4,9 @@ import dynamic from 'next/dynamic';
 import { use, useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { projectService } from '@/services/project.service';
 import { taskService } from '@/services/task.service';
 import { getErrorMessage } from '@/services/api';
@@ -18,7 +19,7 @@ import { CardSkeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { CheckSquare } from 'lucide-react';
 import { selectClass, selectOptionClass } from '@/utils/cn';
-import { invalidateAfterTaskChange } from '@/lib/queryInvalidation';
+import { invalidateAfterTaskChange, invalidateAfterProjectCreate, queryKeys } from '@/lib/queryInvalidation';
 
 const TaskTable = dynamic(
   () => import('@/components/tasks/TaskTable').then((m) => m.TaskTable),
@@ -30,14 +31,20 @@ const PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
 export default function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
+  const router = useRouter();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('');
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('Medium');
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editColor, setEditColor] = useState('#6366f1');
   const debouncedSearch = useDebounce(search);
 
   const queryParams = useMemo(
@@ -98,6 +105,36 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
+  const updateProject = useMutation({
+    mutationFn: () =>
+      projectService.update(projectId, {
+        name: editName,
+        description: editDescription,
+        color: editColor,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', projectId] });
+      if (workspaceId) {
+        qc.invalidateQueries({ queryKey: queryKeys.projects(workspaceId) });
+      }
+      toast.success('Project updated');
+      setEditOpen(false);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const deleteProject = useMutation({
+    mutationFn: () => projectService.remove(projectId),
+    onSuccess: () => {
+      if (workspaceId) {
+        void invalidateAfterProjectCreate(qc, workspaceId);
+      }
+      toast.success('Project deleted');
+      router.push(workspaceId ? `/workspaces/${workspaceId}` : '/workspaces');
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
   const handleStatusChange = useCallback(
     (id: string, status: TaskStatus) => updateStatus.mutate({ id, status }),
     [updateStatus]
@@ -105,6 +142,14 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
 
   const project = projectData?.project;
   const meta = tasksData?.meta;
+
+  const openEditModal = () => {
+    if (!project) return;
+    setEditName(project.name);
+    setEditDescription(project.description || '');
+    setEditColor(project.color || '#6366f1');
+    setEditOpen(true);
+  };
 
   return (
     <div>
@@ -120,9 +165,17 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           </h1>
           <p className="text-slate-500">{project?.description}</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New task
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={openEditModal}>
+            <Pencil className="mr-2 h-4 w-4" /> Edit
+          </Button>
+          <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New task
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
@@ -234,6 +287,55 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
             Create
           </Button>
         </form>
+      </Modal>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit project">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            updateProject.mutate();
+          }}
+          className="space-y-4"
+        >
+          <Input label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+          <Input
+            label="Description"
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+          />
+          <div>
+            <label className="mb-1 block text-sm font-medium">Color</label>
+            <input
+              type="color"
+              value={editColor}
+              onChange={(e) => setEditColor(e.target.value)}
+              className="h-10 w-full cursor-pointer rounded-lg border border-slate-300 dark:border-slate-600"
+            />
+          </div>
+          <Button type="submit" loading={updateProject.isPending} className="w-full">
+            Save changes
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete project">
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+          Are you sure you want to delete <strong>{project?.name}</strong>? All tasks in this project will be
+          permanently removed.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setDeleteOpen(false)} className="flex-1">
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={deleteProject.isPending}
+            onClick={() => deleteProject.mutate()}
+            className="flex-1"
+          >
+            Delete project
+          </Button>
+        </div>
       </Modal>
     </div>
   );

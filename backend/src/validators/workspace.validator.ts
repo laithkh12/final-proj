@@ -22,3 +22,8 @@ export const inviteMemberValidator = [
   body('email').trim().isEmail().withMessage('Valid email required'),
   body('role').optional().isIn(MEMBER_ROLES.filter((r) => r !== 'owner')),
 ];
+
+export const removeMemberValidator = [
+  ...workspaceIdParam,
+  param('userId').isMongoId().withMessage('Invalid user id'),
+];

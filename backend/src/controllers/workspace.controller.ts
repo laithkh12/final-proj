@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
-import { ActivityLog, Project, Task, User, Workspace, WorkspaceMember } from '../models';
+import { ActivityLog, Project, Task, TeamMember, User, Workspace, WorkspaceMember } from '../models';
 import { logActivity } from '../services/activity.service';
+import { seedDefaultTeamMembers } from '../services/teamMember.service';
 import {
   assertWorkspaceAdmin,
   assertWorkspaceMember,
   assertWorkspaceOwner,
+  canManageRole,
   getUserWorkspaceIds,
 } from '../services/workspaceAccess.service';
+import { MemberRole } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/response';
 import { ApiError } from '../utils/ApiError';
@@ -20,6 +23,13 @@ const slugify = (name: string): string =>
     .replace(/(^-|-$)/g, '') +
   '-' +
   Date.now().toString(36);
+
+const pickWorkspaceUpdateFields = (body: Record<string, unknown>) => {
+  const fields: Record<string, unknown> = {};
+  if (body.name !== undefined) fields.name = body.name;
+  if (body.description !== undefined) fields.description = body.description;
+  return fields;
+};
 
 export const getWorkspaces = asyncHandler(async (req: Request, res: Response) => {
   const ids = await getUserWorkspaceIds(req.user!.userId);
@@ -44,6 +54,8 @@ export const createWorkspace = asyncHandler(async (req: Request, res: Response) 
     role: 'owner',
     invitedBy: req.user!.userId,
   });
+
+  await seedDefaultTeamMembers(workspace._id);
 
   await logActivity({
     workspaceId: workspace._id,
@@ -76,7 +88,16 @@ export const getWorkspace = asyncHandler(async (req: Request, res: Response) => 
 export const updateWorkspace = asyncHandler(async (req: Request, res: Response) => {
   const id = getParam(req, 'id');
   await assertWorkspaceAdmin(id, req.user!.userId);
-  const workspace = await Workspace.findByIdAndUpdate(id, req.body, {
+
+  const updates = pickWorkspaceUpdateFields(req.body as Record<string, unknown>);
+  if (Object.keys(updates).length === 0) {
+    const workspace = await Workspace.findById(id);
+    if (!workspace) throw new ApiError(404, 'Workspace not found');
+    sendSuccess(res, workspace, 200, 'No changes');
+    return;
+  }
+
+  const workspace = await Workspace.findByIdAndUpdate(id, updates, {
     new: true,
     runValidators: true,
   });
@@ -89,6 +110,7 @@ export const updateWorkspace = asyncHandler(async (req: Request, res: Response) 
     message: `Updated workspace "${workspace.name}"`,
     entityType: 'workspace',
     entityId: workspace._id,
+    metadata: updates,
   });
 
   sendSuccess(res, workspace, 200, 'Workspace updated');
@@ -101,6 +123,7 @@ export const deleteWorkspace = asyncHandler(async (req: Request, res: Response) 
   if (!workspace) throw new ApiError(404, 'Workspace not found');
 
   await WorkspaceMember.deleteMany({ workspace: workspace._id });
+  await TeamMember.deleteMany({ workspace: workspace._id });
   await Project.deleteMany({ workspace: workspace._id });
   await Task.deleteMany({ workspace: workspace._id });
   await ActivityLog.deleteMany({ workspace: workspace._id });
@@ -137,6 +160,51 @@ export const inviteMember = asyncHandler(async (req: Request, res: Response) => 
 
   const populated = await member.populate('user', 'name email avatar');
   sendSuccess(res, populated, 201, 'Member invited');
+});
+
+export const removeMember = asyncHandler(async (req: Request, res: Response) => {
+  const workspaceId = getParam(req, 'id');
+  const targetUserId = getParam(req, 'userId');
+
+  const actorMembership = await assertWorkspaceAdmin(workspaceId, req.user!.userId);
+
+  const targetMembership = await WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: targetUserId,
+  }).populate('user', 'name email avatar');
+
+  if (!targetMembership) throw new ApiError(404, 'Member not found');
+  if (targetMembership.role === 'owner') {
+    throw new ApiError(403, 'Cannot remove the workspace owner');
+  }
+  if (
+    !canManageRole(
+      actorMembership.role as MemberRole,
+      targetMembership.role as MemberRole
+    )
+  ) {
+    throw new ApiError(403, 'You cannot remove this member');
+  }
+
+  const userName =
+    targetMembership.user &&
+    typeof targetMembership.user === 'object' &&
+    'name' in targetMembership.user
+      ? (targetMembership.user as { name: string }).name
+      : 'Member';
+
+  await targetMembership.deleteOne();
+
+  await logActivity({
+    workspaceId,
+    userId: req.user!.userId,
+    type: 'member_removed',
+    message: `Removed ${userName} from the workspace`,
+    entityType: 'member',
+    entityId: targetUserId,
+  });
+
+  sendSuccess(res, null, 200, 'Member removed');
 });
 
 export const getActivity = asyncHandler(async (req: Request, res: Response) => {

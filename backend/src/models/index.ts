@@ -1,4 +1,5 @@
 export { User, IUser } from './User';
+export { TeamMember, ITeamMember } from './TeamMember';
 export { Workspace, IWorkspace } from './Workspace';
 export { WorkspaceMember, IWorkspaceMember } from './WorkspaceMember';
 export { Project, IProject } from './Project';
