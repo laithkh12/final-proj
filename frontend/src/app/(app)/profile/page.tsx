@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
 export default function ProfilePage() {
-  const { user, setAuth, token } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
@@ -19,7 +19,7 @@ export default function ProfilePage() {
   const updateMutation = useMutation({
     mutationFn: () => userService.updateMe({ name, bio, avatar: avatar.trim() || '' }),
     onSuccess: (res) => {
-      if (token) setAuth(res.data.data!, token);
+      setUser(res.data.data!);
       setAvatarError(false);
       toast.success('Profile updated');
     },

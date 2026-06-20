@@ -1,23 +1,12 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { ApiResponse } from '@/types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-export const TOKEN_KEY = 'teamflow_token';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (typeof window !== 'undefined' && config.headers) {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
 });
 
 api.interceptors.response.use(
@@ -31,10 +20,10 @@ api.interceptors.response.use(
     const isAuthRequest =
       url.includes('/auth/login') ||
       url.includes('/auth/signup') ||
-      url.includes('/auth/logout');
+      url.includes('/auth/logout') ||
+      url.includes('/auth/me');
 
     if (!isAuthRequest) {
-      localStorage.removeItem(TOKEN_KEY);
       void import('@/store/authStore').then(({ useAuthStore }) => {
         useAuthStore.getState().clearAuth();
       });

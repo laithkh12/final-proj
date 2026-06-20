@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,6 +23,15 @@ import { invalidateAfterTaskChange } from '@/lib/queryInvalidation';
 const STATUSES: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 const PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
+interface TaskDraft {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  assignee: string;
+  dueDate: string;
+}
+
 export default function TaskDetailPage({ params }: { params: Promise<{ taskId: string }> }) {
   const { taskId } = use(params);
   const router = useRouter();
@@ -30,8 +39,14 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const user = useAuthStore((s) => s.user);
   const [comment, setComment] = useState('');
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
+  const [draft, setDraft] = useState<TaskDraft>({
+    title: '',
+    description: '',
+    status: 'Todo',
+    priority: 'Medium',
+    assignee: '',
+    dueDate: '',
+  });
 
   const { data: taskData, isLoading } = useQuery({
     queryKey: ['task', taskId],
@@ -68,10 +83,21 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   });
 
   useEffect(() => {
-    if (task) {
-      setEditTitle(task.title);
-      setEditDescription(task.description || '');
-    }
+    if (!task) return;
+
+    const assigneeId =
+      typeof task.assignee === 'object' && task.assignee !== null && '_id' in task.assignee
+        ? (task.assignee as { _id: string })._id
+        : task.assignee || '';
+
+    setDraft({
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: task.priority,
+      assignee: assigneeId,
+      dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+    });
   }, [task]);
 
   const updateTask = useMutation({
@@ -128,6 +154,36 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
+  const isDirty = useMemo(() => {
+    if (!task) return false;
+
+    const assigneeId =
+      typeof task.assignee === 'object' && task.assignee !== null && '_id' in task.assignee
+        ? (task.assignee as { _id: string })._id
+        : task.assignee || '';
+    const dueDate = task.dueDate ? task.dueDate.split('T')[0] : '';
+
+    return (
+      draft.title !== task.title ||
+      draft.description !== (task.description || '') ||
+      draft.status !== task.status ||
+      draft.priority !== task.priority ||
+      draft.assignee !== assigneeId ||
+      draft.dueDate !== dueDate
+    );
+  }, [draft, task]);
+
+  const handleSave = () => {
+    updateTask.mutate({
+      title: draft.title,
+      description: draft.description,
+      status: draft.status,
+      priority: draft.priority,
+      assignee: draft.assignee || null,
+      dueDate: draft.dueDate ? `${draft.dueDate}T12:00:00.000Z` : null,
+    });
+  };
+
   if (isLoading) return <CardSkeleton />;
   if (!task) return <p>Task not found</p>;
 
@@ -136,13 +192,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
       ? (task.project as { _id: string })._id
       : String(task.project);
 
-  const assigneeId =
-    typeof task.assignee === 'object' && task.assignee !== null && '_id' in task.assignee
-      ? (task.assignee as { _id: string })._id
-      : task.assignee || '';
-
   const members = teamMembers ?? [];
-  const detailsDirty = editTitle !== task.title || editDescription !== (task.description || '');
 
   return (
     <div className="max-w-3xl">
@@ -150,40 +200,46 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         <Link href={`/projects/${projectId}`} className="text-sm text-indigo-600 hover:underline">
           ← Back to project
         </Link>
-        {isAdmin && (
-          <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete task
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {isDirty && (
+            <Button onClick={handleSave} loading={updateTask.isPending}>
+              Save changes
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Delete task
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 space-y-4">
-        <Input label="Title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} required />
+        <Input
+          label="Title"
+          value={draft.title}
+          onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
+          required
+        />
         <div>
           <label className="mb-1 block text-sm font-medium">Description</label>
           <textarea
-            value={editDescription}
-            onChange={(e) => setEditDescription(e.target.value)}
+            value={draft.description}
+            onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
             rows={4}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
           />
         </div>
-        {detailsDirty && (
-          <Button
-            onClick={() => updateTask.mutate({ title: editTitle, description: editDescription })}
-            loading={updateTask.isPending}
-          >
-            Save details
-          </Button>
-        )}
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium">Status</label>
           <select
-            value={task.status}
-            onChange={(e) => updateTask.mutate({ status: e.target.value as TaskStatus })}
+            value={draft.status}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, status: e.target.value as TaskStatus }))
+            }
             className={cn(selectClass, 'mt-1 w-full')}
           >
             {STATUSES.map((s) => (
@@ -196,8 +252,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         <div>
           <label className="text-sm font-medium">Priority</label>
           <select
-            value={task.priority}
-            onChange={(e) => updateTask.mutate({ priority: e.target.value as TaskPriority })}
+            value={draft.priority}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, priority: e.target.value as TaskPriority }))
+            }
             className={cn(selectClass, 'mt-1 w-full')}
           >
             {PRIORITIES.map((p) => (
@@ -210,10 +268,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         <div>
           <label className="text-sm font-medium">Assignee</label>
           <select
-            value={assigneeId}
-            onChange={(e) =>
-              updateTask.mutate({ assignee: e.target.value ? e.target.value : null })
-            }
+            value={draft.assignee}
+            onChange={(e) => setDraft((prev) => ({ ...prev, assignee: e.target.value }))}
             className={cn(selectClass, 'mt-1 w-full')}
           >
             <option value="" className={selectOptionClass}>
@@ -240,12 +296,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           <label className="text-sm font-medium">Due date</label>
           <input
             type="date"
-            value={task.dueDate ? task.dueDate.split('T')[0] : ''}
-            onChange={(e) =>
-              updateTask.mutate({
-                dueDate: e.target.value ? `${e.target.value}T12:00:00.000Z` : null,
-              })
-            }
+            value={draft.dueDate}
+            onChange={(e) => setDraft((prev) => ({ ...prev, dueDate: e.target.value }))}
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>

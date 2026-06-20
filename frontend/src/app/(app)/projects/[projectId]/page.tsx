@@ -41,6 +41,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('Medium');
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -78,7 +79,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const isAdmin = projectData?.myRole === 'owner' || projectData?.myRole === 'admin';
 
   const createTask = useMutation({
-    mutationFn: () => taskService.create(projectId, { title, priority }),
+    mutationFn: () => taskService.create(projectId, { title, description, priority }),
     onSuccess: () => {
       if (workspaceId) {
         void invalidateAfterTaskChange(qc, { projectId, workspaceId });
@@ -89,6 +90,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
       toast.success('Task created');
       setOpen(false);
       setTitle('');
+      setDescription('');
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -274,6 +276,16 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           className="space-y-4"
         >
           <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <div>
+            <label className="mb-1 block text-sm font-medium">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Optional details..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Priority</label>
             <select

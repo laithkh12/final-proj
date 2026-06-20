@@ -2,9 +2,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const required = ['MONGODB_URI', 'JWT_SECRET'] as const;
+const isProduction = process.env.NODE_ENV === 'production';
 
-for (const key of required) {
+if (isProduction && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is required when NODE_ENV=production');
+}
+
+if (isProduction && !process.env.MONGODB_URI) {
+  throw new Error('MONGODB_URI is required when NODE_ENV=production');
+}
+
+const requiredInDev = ['MONGODB_URI', 'JWT_SECRET'] as const;
+for (const key of requiredInDev) {
   if (!process.env[key]) {
     console.warn(`Warning: ${key} is not set in environment variables`);
   }
@@ -17,6 +26,6 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
-  cookieSecure: process.env.COOKIE_SECURE === 'true',
-  isProduction: process.env.NODE_ENV === 'production',
+  cookieSecure: process.env.COOKIE_SECURE === 'true' || isProduction,
+  isProduction,
 };

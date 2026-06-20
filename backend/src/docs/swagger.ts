@@ -8,7 +8,7 @@ const options: swaggerJsdoc.Options = {
       title: 'TeamFlow API',
       version: '1.0.0',
       description:
-        'REST API for TeamFlow — Team Project Management Platform. JWT authentication via Bearer token or httpOnly cookie.',
+        'REST API for TeamFlow. Browser clients authenticate via httpOnly cookie (set on login/signup). API tools may use Bearer token.',
       contact: { name: 'TeamFlow Support' },
     },
     servers: [

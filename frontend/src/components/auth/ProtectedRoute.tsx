@@ -7,36 +7,26 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const isReady = useAuthStore((s) => s.isReady);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
-  const getToken = useAuthStore((s) => s.getToken);
-  const fetchUser = useAuthStore((s) => s.fetchUser);
+  const initialize = useAuthStore((s) => s.initialize);
 
   useEffect(() => {
-    if (!hasHydrated) return;
+    void initialize();
+  }, [initialize]);
 
-    const token = getToken();
-    if (!token) {
+  useEffect(() => {
+    if (isReady && !isLoading && !isAuthenticated) {
       router.replace('/login');
-      return;
     }
+  }, [isReady, isLoading, isAuthenticated, router]);
 
-    if (!isAuthenticated && !isLoading) {
-      fetchUser();
-    }
-  }, [hasHydrated, isAuthenticated, isLoading, getToken, fetchUser, router]);
-
-  if (!hasHydrated) {
+  if (!isReady || isLoading) {
     return <LoadingScreen />;
   }
 
-  const token = getToken();
-  if (!token) {
-    return <LoadingScreen />;
-  }
-
-  if (isLoading || !isAuthenticated) {
+  if (!isAuthenticated) {
     return <LoadingScreen />;
   }
 
