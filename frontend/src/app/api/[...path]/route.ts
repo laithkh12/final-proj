@@ -52,6 +52,13 @@ const HOP_BY_HOP = new Set([
   'upgrade',
 ]);
 
+/** fetch() decompresses the body; forwarding these makes browsers fail to decode. */
+const STRIP_RESPONSE_HEADERS = new Set([
+  ...HOP_BY_HOP,
+  'content-encoding',
+  'content-length',
+]);
+
 async function proxyRequest(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
@@ -86,7 +93,7 @@ async function proxyRequest(
     const responseHeaders = new Headers();
 
     backendRes.headers.forEach((value, key) => {
-      if (HOP_BY_HOP.has(key.toLowerCase())) return;
+      if (STRIP_RESPONSE_HEADERS.has(key.toLowerCase())) return;
       responseHeaders.append(key, value);
     });
 
