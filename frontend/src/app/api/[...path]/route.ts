@@ -3,11 +3,43 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function getBackendBase(): string | null {
-  const raw = process.env.API_PROXY_URL?.trim();
-  if (!raw) return null;
-  return raw.replace(/\/$/, '');
+function getBackendBase(): { base: string } | { error: string } {
+  const raw = process.env.API_PROXY_URL?.trim().replace(/^["']|["']$/g, '');
+  if (!raw) {
+    return {
+      error:
+        'API_PROXY_URL is not set. On Vercel, set it to your Render URL, e.g. https://final-proj-yjse.onrender.com',
+    };
+  }
+
+  let base = raw.replace(/\/$/, '');
+  if (base.endsWith('/api')) {
+    base = base.slice(0, -4);
+  }
+
+  if (!/^https?:\/\//i.test(base)) {
+    return {
+      error:
+        'API_PROXY_URL must be a full backend URL starting with https:// (not /api). Example: https://final-proj-yjse.onrender.com',
+    };
+  }
+
+  try {
+    new URL(base);
+  } catch {
+    return { error: 'API_PROXY_URL is not a valid URL.' };
+  }
+
+  return { base };
 }
+
+const REQUEST_HEADERS = new Set([
+  'accept',
+  'accept-language',
+  'authorization',
+  'content-type',
+  'cookie',
+]);
 
 const HOP_BY_HOP = new Set([
   'connection',
@@ -24,26 +56,19 @@ async function proxyRequest(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
 ): Promise<NextResponse> {
-  const backendBase = getBackendBase();
-  if (!backendBase) {
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          'API proxy is not configured. Set API_PROXY_URL on Vercel to your Render backend URL.',
-      },
-      { status: 503 }
-    );
+  const backend = getBackendBase();
+  if ('error' in backend) {
+    return NextResponse.json({ success: false, message: backend.error }, { status: 503 });
   }
 
   try {
     const { path } = await context.params;
-    const targetUrl = `${backendBase}/api/${path.join('/')}${request.nextUrl.search}`;
+    const targetUrl = `${backend.base}/api/${path.join('/')}${request.nextUrl.search}`;
 
     const headers = new Headers();
     request.headers.forEach((value, key) => {
       const lower = key.toLowerCase();
-      if (lower === 'host' || HOP_BY_HOP.has(lower)) return;
+      if (!REQUEST_HEADERS.has(lower)) return;
       headers.set(key, value);
     });
 
@@ -85,7 +110,11 @@ async function proxyRequest(
   } catch (error) {
     console.error('API proxy error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to reach backend API' },
+      {
+        success: false,
+        message:
+          'Failed to reach backend API. Check that API_PROXY_URL on Vercel is https://final-proj-yjse.onrender.com (no /api suffix).',
+      },
       { status: 502 }
     );
   }
