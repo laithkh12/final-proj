@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-function getBackendBase(): string {
-  return (process.env.API_PROXY_URL || 'http://localhost:5000').replace(/\/$/, '');
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+function getBackendBase(): string | null {
+  const raw = process.env.API_PROXY_URL?.trim();
+  if (!raw) return null;
+  return raw.replace(/\/$/, '');
 }
 
 const HOP_BY_HOP = new Set([
@@ -19,50 +24,71 @@ async function proxyRequest(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
 ): Promise<NextResponse> {
-  const { path } = await context.params;
-  const targetUrl = `${getBackendBase()}/api/${path.join('/')}${request.nextUrl.search}`;
-
-  const headers = new Headers();
-  request.headers.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (lower === 'host' || HOP_BY_HOP.has(lower)) return;
-    headers.set(key, value);
-  });
-
-  const init: RequestInit = {
-    method: request.method,
-    headers,
-  };
-
-  if (request.method !== 'GET' && request.method !== 'HEAD') {
-    init.body = await request.arrayBuffer();
+  const backendBase = getBackendBase();
+  if (!backendBase) {
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          'API proxy is not configured. Set API_PROXY_URL on Vercel to your Render backend URL.',
+      },
+      { status: 503 }
+    );
   }
 
-  const backendRes = await fetch(targetUrl, init);
-  const responseHeaders = new Headers();
+  try {
+    const { path } = await context.params;
+    const targetUrl = `${backendBase}/api/${path.join('/')}${request.nextUrl.search}`;
 
-  backendRes.headers.forEach((value, key) => {
-    if (HOP_BY_HOP.has(key.toLowerCase())) return;
-    responseHeaders.append(key, value);
-  });
+    const headers = new Headers();
+    request.headers.forEach((value, key) => {
+      const lower = key.toLowerCase();
+      if (lower === 'host' || HOP_BY_HOP.has(lower)) return;
+      headers.set(key, value);
+    });
 
-  const setCookies =
-    typeof backendRes.headers.getSetCookie === 'function'
-      ? backendRes.headers.getSetCookie()
-      : [];
+    const init: RequestInit = {
+      method: request.method,
+      headers,
+    };
 
-  if (setCookies.length > 0) {
-    responseHeaders.delete('set-cookie');
-    for (const cookie of setCookies) {
-      responseHeaders.append('set-cookie', cookie);
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      init.body = await request.arrayBuffer();
     }
-  }
 
-  return new NextResponse(backendRes.body, {
-    status: backendRes.status,
-    statusText: backendRes.statusText,
-    headers: responseHeaders,
-  });
+    const backendRes = await fetch(targetUrl, init);
+    const body = await backendRes.arrayBuffer();
+    const responseHeaders = new Headers();
+
+    backendRes.headers.forEach((value, key) => {
+      if (HOP_BY_HOP.has(key.toLowerCase())) return;
+      responseHeaders.append(key, value);
+    });
+
+    const setCookies =
+      typeof backendRes.headers.getSetCookie === 'function'
+        ? backendRes.headers.getSetCookie()
+        : [];
+
+    if (setCookies.length > 0) {
+      responseHeaders.delete('set-cookie');
+      for (const cookie of setCookies) {
+        responseHeaders.append('set-cookie', cookie);
+      }
+    }
+
+    return new NextResponse(body, {
+      status: backendRes.status,
+      statusText: backendRes.statusText,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error('API proxy error:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to reach backend API' },
+      { status: 502 }
+    );
+  }
 }
 
 export const GET = proxyRequest;
