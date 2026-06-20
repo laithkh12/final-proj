@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { use, useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import toast from 'react-hot-toast';
-import { MessageSquare, Trash2 } from 'lucide-react';
-import { taskService } from '@/services/task.service';
-import { commentService } from '@/services/comment.service';
-import { workspaceService } from '@/services/workspace.service';
-import { getErrorMessage } from '@/services/api';
-import type { TaskPriority, TaskStatus } from '@/types';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
-import { CardSkeleton } from '@/components/ui/Skeleton';
-import { useAuthStore } from '@/store/authStore';
-import { cn, selectClass, selectOptionClass } from '@/utils/cn';
-import { invalidateAfterTaskChange } from '@/lib/queryInvalidation';
+import { use, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import toast from "react-hot-toast";
+import { MessageSquare, Trash2 } from "lucide-react";
+import { taskService } from "@/services/task.service";
+import { commentService } from "@/services/comment.service";
+import { workspaceService } from "@/services/workspace.service";
+import { getErrorMessage } from "@/services/api";
+import type { TaskPriority, TaskStatus } from "@/types";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import { useAuthStore } from "@/store/authStore";
+import { cn, selectClass, selectOptionClass } from "@/utils/cn";
+import { invalidateAfterTaskChange } from "@/lib/queryInvalidation";
 
-const STATUSES: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
-const PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
+const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
+const PRIORITIES: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
 
 interface TaskDraft {
   title: string;
@@ -32,24 +32,28 @@ interface TaskDraft {
   dueDate: string;
 }
 
-export default function TaskDetailPage({ params }: { params: Promise<{ taskId: string }> }) {
+export default function TaskDetailPage({
+  params,
+}: {
+  params: Promise<{ taskId: string }>;
+}) {
   const { taskId } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [draft, setDraft] = useState<TaskDraft>({
-    title: '',
-    description: '',
-    status: 'Todo',
-    priority: 'Medium',
-    assignee: '',
-    dueDate: '',
+    title: "",
+    description: "",
+    status: "Todo",
+    priority: "Medium",
+    assignee: "",
+    dueDate: "",
   });
 
   const { data: taskData, isLoading } = useQuery({
-    queryKey: ['task', taskId],
+    queryKey: ["task", taskId],
     queryFn: async () => {
       const res = await taskService.get(taskId);
       return res.data.data!;
@@ -57,16 +61,18 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   });
 
   const task = taskData?.task;
-  const isAdmin = taskData?.myRole === 'owner' || taskData?.myRole === 'admin';
+  const isAdmin = taskData?.myRole === "owner" || taskData?.myRole === "admin";
 
   const workspaceId = task
-    ? typeof task.workspace === 'object' && task.workspace !== null && '_id' in task.workspace
+    ? typeof task.workspace === "object" &&
+      task.workspace !== null &&
+      "_id" in task.workspace
       ? (task.workspace as { _id: string })._id
       : String(task.workspace)
-    : '';
+    : "";
 
   const { data: teamMembers, isLoading: teamMembersLoading } = useQuery({
-    queryKey: ['team-members', workspaceId],
+    queryKey: ["team-members", workspaceId],
     queryFn: async () => {
       const res = await workspaceService.teamMembers(workspaceId);
       return res.data.data!;
@@ -75,7 +81,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   });
 
   const { data: comments } = useQuery({
-    queryKey: ['comments', taskId],
+    queryKey: ["comments", taskId],
     queryFn: async () => {
       const res = await commentService.list(taskId);
       return res.data.data!;
@@ -86,27 +92,31 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     if (!task) return;
 
     const assigneeId =
-      typeof task.assignee === 'object' && task.assignee !== null && '_id' in task.assignee
+      typeof task.assignee === "object" &&
+      task.assignee !== null &&
+      "_id" in task.assignee
         ? (task.assignee as { _id: string })._id
-        : task.assignee || '';
+        : task.assignee || "";
 
     setDraft({
       title: task.title,
-      description: task.description || '',
+      description: task.description || "",
       status: task.status,
       priority: task.priority,
       assignee: assigneeId,
-      dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+      dueDate: task.dueDate ? task.dueDate.split("T")[0] : "",
     });
   }, [task]);
 
   const updateTask = useMutation({
-    mutationFn: (data: import('@/services/task.service').TaskUpdatePayload) =>
+    mutationFn: (data: import("@/services/task.service").TaskUpdatePayload) =>
       taskService.update(taskId, data),
     onSuccess: () => {
       if (task) {
         const projectId =
-          typeof task.project === 'object' && task.project !== null && '_id' in task.project
+          typeof task.project === "object" &&
+          task.project !== null &&
+          "_id" in task.project
             ? (task.project as { _id: string })._id
             : String(task.project);
         void invalidateAfterTaskChange(qc, {
@@ -115,9 +125,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           taskId,
         });
       } else {
-        qc.invalidateQueries({ queryKey: ['task', taskId] });
+        qc.invalidateQueries({ queryKey: ["task", taskId] });
       }
-      toast.success('Task updated');
+      toast.success("Task updated");
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -127,11 +137,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     onSuccess: () => {
       if (task) {
         const projectId =
-          typeof task.project === 'object' && task.project !== null && '_id' in task.project
+          typeof task.project === "object" &&
+          task.project !== null &&
+          "_id" in task.project
             ? (task.project as { _id: string })._id
             : String(task.project);
-        void invalidateAfterTaskChange(qc, { projectId, workspaceId: task.workspace });
-        toast.success('Task deleted');
+        void invalidateAfterTaskChange(qc, {
+          projectId,
+          workspaceId: task.workspace,
+        });
+        toast.success("Task deleted");
         router.push(`/projects/${projectId}`);
       }
     },
@@ -141,16 +156,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   const addComment = useMutation({
     mutationFn: () => commentService.create(taskId, comment),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['comments', taskId] });
-      setComment('');
-      toast.success('Comment added');
+      qc.invalidateQueries({ queryKey: ["comments", taskId] });
+      setComment("");
+      toast.success("Comment added");
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const deleteComment = useMutation({
     mutationFn: (id: string) => commentService.remove(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', taskId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["comments", taskId] }),
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
@@ -158,14 +173,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
     if (!task) return false;
 
     const assigneeId =
-      typeof task.assignee === 'object' && task.assignee !== null && '_id' in task.assignee
+      typeof task.assignee === "object" &&
+      task.assignee !== null &&
+      "_id" in task.assignee
         ? (task.assignee as { _id: string })._id
-        : task.assignee || '';
-    const dueDate = task.dueDate ? task.dueDate.split('T')[0] : '';
+        : task.assignee || "";
+    const dueDate = task.dueDate ? task.dueDate.split("T")[0] : "";
 
     return (
       draft.title !== task.title ||
-      draft.description !== (task.description || '') ||
+      draft.description !== (task.description || "") ||
       draft.status !== task.status ||
       draft.priority !== task.priority ||
       draft.assignee !== assigneeId ||
@@ -188,7 +205,9 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   if (!task) return <p>Task not found</p>;
 
   const projectId =
-    typeof task.project === 'object' && task.project !== null && '_id' in task.project
+    typeof task.project === "object" &&
+    task.project !== null &&
+    "_id" in task.project
       ? (task.project as { _id: string })._id
       : String(task.project);
 
@@ -197,17 +216,24 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
   return (
     <div className="max-w-3xl">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link href={`/projects/${projectId}`} className="text-sm text-indigo-600 hover:underline">
+        <Link
+          href={`/projects/${projectId}`}
+          className="text-sm text-indigo-600 hover:underline"
+        >
           ← Back to project
         </Link>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {isDirty && (
             <Button onClick={handleSave} loading={updateTask.isPending}>
               Save changes
             </Button>
           )}
           {isAdmin && (
-            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => setDeleteOpen(true)}
+            >
               <Trash2 className="mr-2 h-4 w-4" /> Delete task
             </Button>
           )}
@@ -218,14 +244,18 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         <Input
           label="Title"
           value={draft.title}
-          onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
+          onChange={(e) =>
+            setDraft((prev) => ({ ...prev, title: e.target.value }))
+          }
           required
         />
         <div>
           <label className="mb-1 block text-sm font-medium">Description</label>
           <textarea
             value={draft.description}
-            onChange={(e) => setDraft((prev) => ({ ...prev, description: e.target.value }))}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, description: e.target.value }))
+            }
             rows={4}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
           />
@@ -238,9 +268,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           <select
             value={draft.status}
             onChange={(e) =>
-              setDraft((prev) => ({ ...prev, status: e.target.value as TaskStatus }))
+              setDraft((prev) => ({
+                ...prev,
+                status: e.target.value as TaskStatus,
+              }))
             }
-            className={cn(selectClass, 'mt-1 w-full')}
+            className={cn(selectClass, "mt-1 w-full")}
           >
             {STATUSES.map((s) => (
               <option key={s} value={s} className={selectOptionClass}>
@@ -254,9 +287,12 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           <select
             value={draft.priority}
             onChange={(e) =>
-              setDraft((prev) => ({ ...prev, priority: e.target.value as TaskPriority }))
+              setDraft((prev) => ({
+                ...prev,
+                priority: e.target.value as TaskPriority,
+              }))
             }
-            className={cn(selectClass, 'mt-1 w-full')}
+            className={cn(selectClass, "mt-1 w-full")}
           >
             {PRIORITIES.map((p) => (
               <option key={p} value={p} className={selectOptionClass}>
@@ -269,8 +305,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           <label className="text-sm font-medium">Assignee</label>
           <select
             value={draft.assignee}
-            onChange={(e) => setDraft((prev) => ({ ...prev, assignee: e.target.value }))}
-            className={cn(selectClass, 'mt-1 w-full')}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, assignee: e.target.value }))
+            }
+            className={cn(selectClass, "mt-1 w-full")}
           >
             <option value="" className={selectOptionClass}>
               Unassigned
@@ -297,19 +335,22 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
           <input
             type="date"
             value={draft.dueDate}
-            onChange={(e) => setDraft((prev) => ({ ...prev, dueDate: e.target.value }))}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, dueDate: e.target.value }))
+            }
             className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>
         <div className="text-sm text-slate-500 sm:col-span-2">
-          <p>Created {format(new Date(task.createdAt), 'PPp')}</p>
-          <p>Updated {format(new Date(task.updatedAt), 'PPp')}</p>
+          <p>Created {format(new Date(task.createdAt), "PPp")}</p>
+          <p>Updated {format(new Date(task.updatedAt), "PPp")}</p>
         </div>
       </div>
 
       <div className="mt-10">
         <h2 className="mb-4 flex items-center gap-2 font-semibold">
-          <MessageSquare className="h-5 w-5" /> Comments ({comments?.length || 0})
+          <MessageSquare className="h-5 w-5" /> Comments (
+          {comments?.length || 0})
         </h2>
 
         <form
@@ -339,9 +380,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-medium text-sm">{c.author?.name}</p>
-                  <p className="mt-1 text-slate-700 dark:text-slate-300">{c.content}</p>
+                  <p className="mt-1 text-slate-700 dark:text-slate-300">
+                    {c.content}
+                  </p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {format(new Date(c.createdAt), 'PPp')}
+                    {format(new Date(c.createdAt), "PPp")}
                   </p>
                 </div>
                 {c.author?._id === user?._id && (
@@ -358,12 +401,21 @@ export default function TaskDetailPage({ params }: { params: Promise<{ taskId: s
         </ul>
       </div>
 
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete task">
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete task"
+      >
         <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-          Are you sure you want to delete <strong>{task.title}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{task.title}</strong>? This
+          action cannot be undone.
         </p>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setDeleteOpen(false)} className="flex-1">
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteOpen(false)}
+            className="flex-1"
+          >
             Cancel
           </Button>
           <Button

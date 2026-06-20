@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle, Users, Zap } from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gradient-to-b from-indigo-50 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">TeamFlow</span>
         <div className="flex gap-3">
@@ -22,7 +22,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pb-20 pt-12 text-center lg:pt-20">
+      <main className="mx-auto flex flex-1 flex-col max-w-6xl px-6 pb-12 pt-12 text-center lg:pt-20">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white lg:text-6xl">
           Team project management,
           <span className="text-indigo-600 dark:text-indigo-400"> simplified</span>

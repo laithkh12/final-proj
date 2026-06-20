@@ -3,9 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { CheckSquare, FolderKanban, LayoutList, Users } from 'lucide-react';
+import { CheckSquare, FolderKanban, LayoutList, Sparkles, Users } from 'lucide-react';
 import { workspaceService } from '@/services/workspace.service';
 import { CardSkeleton } from '@/components/ui/Skeleton';
+import { AiAssistantPanel } from '@/components/ai/AiAssistantPanel';
 
 const statusColors: Record<string, string> = {
   Todo: 'bg-slate-500',
@@ -44,8 +45,28 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
-      <p className="mb-6 text-slate-500">Overview of your workspaces, projects, and tasks</p>
+      <div className="mb-6">
+        <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+        <p className="text-slate-500">Overview of your workspaces, projects, and tasks</p>
+      </div>
+
+      <div className="mb-8 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-violet-50 to-purple-50 p-5 dark:border-indigo-900/50 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-purple-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-slate-900 dark:text-white">AI Project Planner</h2>
+              <p className="mt-1 max-w-xl text-sm text-slate-600 dark:text-slate-300">
+                Start from here to generate workspaces, projects, and tasks with priorities and
+                assignees — all from one conversation.
+              </p>
+            </div>
+          </div>
+          <AiAssistantPanel label="Open AI Planner" />
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -116,6 +137,10 @@ export default function DashboardPage() {
             View workspaces →
           </Link>
         </div>
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <AiAssistantPanel label="Plan with AI" />
       </div>
     </div>
   );

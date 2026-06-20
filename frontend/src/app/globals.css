@@ -16,3 +16,112 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+@keyframes ai-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ai-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ai-panel-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes ai-panel-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes ai-bot-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  65% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ai-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-sparkle {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(8deg) scale(1.08);
+  }
+}
+
+.ai-blade-backdrop-enter {
+  animation: ai-backdrop-in 0.28s ease-out forwards;
+}
+
+.ai-blade-backdrop-exit {
+  animation: ai-backdrop-out 0.22s ease-in forwards;
+}
+
+.ai-blade-panel-enter {
+  animation: ai-panel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.ai-blade-panel-exit {
+  animation: ai-panel-out 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.ai-blade-bot-pop {
+  animation: ai-bot-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+.ai-blade-bubble {
+  animation: ai-bubble-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-blade-sparkle {
+  animation: ai-sparkle 2.4s ease-in-out 0.5s infinite;
+}
+
+.ai-blade-footer-in {
+  animation: ai-bubble-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.55s both;
+}

@@ -1,51 +1,74 @@
-'use client';
+"use client";
 
-import dynamic from 'next/dynamic';
-import { use, useCallback, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
-import { projectService } from '@/services/project.service';
-import { taskService } from '@/services/task.service';
-import { getErrorMessage } from '@/services/api';
-import { useDebounce } from '@/hooks/useDebounce';
-import type { TaskPriority, TaskStatus } from '@/types';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
-import { CardSkeleton } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { CheckSquare } from 'lucide-react';
-import { selectClass, selectOptionClass } from '@/utils/cn';
-import { invalidateAfterTaskChange, invalidateAfterProjectCreate, queryKeys } from '@/lib/queryInvalidation';
+import dynamic from "next/dynamic";
+import { use, useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { projectService } from "@/services/project.service";
+import { taskService } from "@/services/task.service";
+import { workspaceService } from "@/services/workspace.service";
+import { getErrorMessage } from "@/services/api";
+import { useDebounce } from "@/hooks/useDebounce";
+import type { Task, TaskPriority, TaskStatus } from "@/types";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { CardSkeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { CheckSquare } from "lucide-react";
+import { selectClass, selectOptionClass } from "@/utils/cn";
+import {
+  invalidateAfterTaskChange,
+  invalidateAfterProjectCreate,
+  queryKeys,
+} from "@/lib/queryInvalidation";
+import { canSaveDuplicateTitle } from "@/utils/duplicate";
 
 const TaskTable = dynamic(
-  () => import('@/components/tasks/TaskTable').then((m) => m.TaskTable),
-  { loading: () => <CardSkeleton />, ssr: false }
+  () => import("@/components/tasks/TaskTable").then((m) => m.TaskTable),
+  { loading: () => <CardSkeleton />, ssr: false },
 );
 
-const STATUSES: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
-const PRIORITIES: TaskPriority[] = ['Low', 'Medium', 'High', 'Urgent'];
+const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
+const PRIORITIES: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
 
-export default function ProjectPage({ params }: { params: Promise<{ projectId: string }> }) {
+export default function ProjectPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
   const { projectId } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('');
-  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "">("");
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<TaskPriority>('Medium');
-  const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editColor, setEditColor] = useState('#6366f1');
+  const [taskDeleteOpen, setTaskDeleteOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [taskDuplicateOpen, setTaskDuplicateOpen] = useState(false);
+  const [taskToDuplicate, setTaskToDuplicate] = useState<Task | null>(null);
+  const [dupTitle, setDupTitle] = useState("");
+  const [dupDescription, setDupDescription] = useState("");
+  const [dupPriority, setDupPriority] = useState<TaskPriority>("Medium");
+  const [dupStatus, setDupStatus] = useState<TaskStatus>("Todo");
+  const [dupAssignee, setDupAssignee] = useState("");
+  const [dupDueDate, setDupDueDate] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<TaskPriority>("Medium");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editColor, setEditColor] = useState("#6366f1");
   const debouncedSearch = useDebounce(search);
 
   const queryParams = useMemo(
@@ -56,7 +79,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
       ...(statusFilter && { status: statusFilter }),
       ...(priorityFilter && { priority: priorityFilter }),
     }),
-    [page, debouncedSearch, statusFilter, priorityFilter]
+    [page, debouncedSearch, statusFilter, priorityFilter],
   );
 
   const { data: projectData } = useQuery({
@@ -68,7 +91,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   });
 
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ['tasks', projectId, queryParams],
+    queryKey: ["tasks", projectId, queryParams],
     queryFn: async () => {
       const res = await taskService.list(projectId, queryParams);
       return { tasks: res.data.data!, meta: res.data.meta };
@@ -76,21 +99,32 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   });
 
   const workspaceId = projectData?.project?.workspace;
-  const isAdmin = projectData?.myRole === 'owner' || projectData?.myRole === 'admin';
+  const isAdmin =
+    projectData?.myRole === "owner" || projectData?.myRole === "admin";
+
+  const { data: teamMembers } = useQuery({
+    queryKey: ["team-members", workspaceId],
+    queryFn: async () => {
+      const res = await workspaceService.teamMembers(workspaceId!);
+      return res.data.data!;
+    },
+    enabled: !!workspaceId,
+  });
 
   const createTask = useMutation({
-    mutationFn: () => taskService.create(projectId, { title, description, priority }),
+    mutationFn: () =>
+      taskService.create(projectId, { title, description, priority }),
     onSuccess: () => {
       if (workspaceId) {
         void invalidateAfterTaskChange(qc, { projectId, workspaceId });
       } else {
-        qc.invalidateQueries({ queryKey: ['tasks', projectId] });
-        qc.invalidateQueries({ queryKey: ['dashboard'] });
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+        qc.invalidateQueries({ queryKey: ["dashboard"] });
       }
-      toast.success('Task created');
+      toast.success("Task created");
       setOpen(false);
-      setTitle('');
-      setDescription('');
+      setTitle("");
+      setDescription("");
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
@@ -100,9 +134,13 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
       taskService.update(id, { status }),
     onSuccess: (_data, { id }) => {
       if (workspaceId) {
-        void invalidateAfterTaskChange(qc, { projectId, workspaceId, taskId: id });
+        void invalidateAfterTaskChange(qc, {
+          projectId,
+          workspaceId,
+          taskId: id,
+        });
       } else {
-        qc.invalidateQueries({ queryKey: ['tasks', projectId] });
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
       }
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -120,7 +158,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
       if (workspaceId) {
         qc.invalidateQueries({ queryKey: queryKeys.projects(workspaceId) });
       }
-      toast.success('Project updated');
+      toast.success("Project updated");
       setEditOpen(false);
     },
     onError: (e) => toast.error(getErrorMessage(e)),
@@ -132,15 +170,59 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
       if (workspaceId) {
         void invalidateAfterProjectCreate(qc, workspaceId);
       }
-      toast.success('Project deleted');
-      router.push(workspaceId ? `/workspaces/${workspaceId}` : '/workspaces');
+      toast.success("Project deleted");
+      router.push(workspaceId ? `/workspaces/${workspaceId}` : "/workspaces");
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: (id: string) => taskService.remove(id),
+    onSuccess: (_data, id) => {
+      if (workspaceId) {
+        void invalidateAfterTaskChange(qc, {
+          projectId,
+          workspaceId,
+          taskId: id,
+        });
+      } else {
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+        qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      }
+      toast.success("Task deleted");
+      setTaskDeleteOpen(false);
+      setTaskToDelete(null);
+    },
+    onError: (e) => toast.error(getErrorMessage(e)),
+  });
+
+  const duplicateTask = useMutation({
+    mutationFn: () =>
+      taskService.create(projectId, {
+        title: dupTitle.trim(),
+        description: dupDescription.trim(),
+        priority: dupPriority,
+        status: dupStatus,
+        ...(dupAssignee ? { assignee: dupAssignee } : {}),
+        ...(dupDueDate ? { dueDate: dupDueDate } : {}),
+      }),
+    onSuccess: () => {
+      if (workspaceId) {
+        void invalidateAfterTaskChange(qc, { projectId, workspaceId });
+      } else {
+        qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+        qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      }
+      toast.success("Task duplicated");
+      setTaskDuplicateOpen(false);
+      setTaskToDuplicate(null);
     },
     onError: (e) => toast.error(getErrorMessage(e)),
   });
 
   const handleStatusChange = useCallback(
     (id: string, status: TaskStatus) => updateStatus.mutate({ id, status }),
-    [updateStatus]
+    [updateStatus],
   );
 
   const project = projectData?.project;
@@ -149,15 +231,40 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
   const openEditModal = () => {
     if (!project) return;
     setEditName(project.name);
-    setEditDescription(project.description || '');
-    setEditColor(project.color || '#6366f1');
+    setEditDescription(project.description || "");
+    setEditColor(project.color || "#6366f1");
     setEditOpen(true);
   };
+
+  const openTaskDuplicateModal = (task: Task) => {
+    const assigneeId =
+      typeof task.assignee === "object" &&
+      task.assignee !== null &&
+      "_id" in task.assignee
+        ? (task.assignee as { _id: string })._id
+        : typeof task.assignee === "string"
+          ? task.assignee
+          : "";
+    setTaskToDuplicate(task);
+    setDupTitle(task.title);
+    setDupDescription(task.description || "");
+    setDupPriority(task.priority);
+    setDupStatus(task.status);
+    setDupAssignee(assigneeId);
+    setDupDueDate(task.dueDate ? task.dueDate.split("T")[0] : "");
+    setTaskDuplicateOpen(true);
+  };
+
+  const canSaveTaskDuplicate =
+    taskToDuplicate && canSaveDuplicateTitle(taskToDuplicate.title, dupTitle);
 
   return (
     <div>
       <div className="mb-2 text-sm text-slate-500">
-        <Link href={`/workspaces/${project?.workspace}`} className="hover:text-indigo-600">
+        <Link
+          href={`/workspaces/${project?.workspace}`}
+          className="hover:text-indigo-600"
+        >
           ← Back to workspace
         </Link>
       </div>
@@ -201,7 +308,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         <select
           value={statusFilter}
           onChange={(e) => {
-            setStatusFilter(e.target.value as TaskStatus | '');
+            setStatusFilter(e.target.value as TaskStatus | "");
             setPage(1);
           }}
           className={selectClass}
@@ -218,7 +325,7 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         <select
           value={priorityFilter}
           onChange={(e) => {
-            setPriorityFilter(e.target.value as TaskPriority | '');
+            setPriorityFilter(e.target.value as TaskPriority | "");
             setPage(1);
           }}
           className={selectClass}
@@ -238,10 +345,24 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
         <CardSkeleton />
       ) : tasksData?.tasks?.length ? (
         <>
-          <TaskTable tasks={tasksData.tasks} onStatusChange={handleStatusChange} />
+          <TaskTable
+            tasks={tasksData.tasks}
+            onStatusChange={handleStatusChange}
+            canDelete={isAdmin}
+            onDelete={(task) => {
+              setTaskToDelete({ id: task._id, title: task.title });
+              setTaskDeleteOpen(true);
+            }}
+            onDuplicate={openTaskDuplicateModal}
+          />
           {meta && meta.totalPages > 1 && (
             <div className="mt-4 flex items-center justify-center gap-2">
-              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 Previous
               </Button>
               <span className="text-sm text-slate-500">
@@ -275,9 +396,16 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           }}
           className="space-y-4"
         >
-          <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <Input
+            label="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
           <div>
-            <label className="mb-1 block text-sm font-medium">Description</label>
+            <label className="mb-1 block text-sm font-medium">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -300,13 +428,21 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
               ))}
             </select>
           </div>
-          <Button type="submit" loading={createTask.isPending} className="w-full">
+          <Button
+            type="submit"
+            loading={createTask.isPending}
+            className="w-full"
+          >
             Create
           </Button>
         </form>
       </Modal>
 
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit project">
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit project"
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -314,7 +450,12 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
           }}
           className="space-y-4"
         >
-          <Input label="Name" value={editName} onChange={(e) => setEditName(e.target.value)} required />
+          <Input
+            label="Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            required
+          />
           <Input
             label="Description"
             value={editDescription}
@@ -329,19 +470,31 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
               className="h-10 w-full cursor-pointer rounded-lg border border-slate-300 dark:border-slate-600"
             />
           </div>
-          <Button type="submit" loading={updateProject.isPending} className="w-full">
+          <Button
+            type="submit"
+            loading={updateProject.isPending}
+            className="w-full"
+          >
             Save changes
           </Button>
         </form>
       </Modal>
 
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete project">
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete project"
+      >
         <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-          Are you sure you want to delete <strong>{project?.name}</strong>? All tasks in this project will be
-          permanently removed.
+          Are you sure you want to delete <strong>{project?.name}</strong>? All
+          tasks in this project will be permanently removed.
         </p>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setDeleteOpen(false)} className="flex-1">
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteOpen(false)}
+            className="flex-1"
+          >
             Cancel
           </Button>
           <Button
@@ -353,6 +506,140 @@ export default function ProjectPage({ params }: { params: Promise<{ projectId: s
             Delete project
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={taskDeleteOpen}
+        onClose={() => {
+          setTaskDeleteOpen(false);
+          setTaskToDelete(null);
+        }}
+        title="Delete task"
+      >
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+          Are you sure you want to delete <strong>{taskToDelete?.title}</strong>
+          ? This action cannot be undone.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setTaskDeleteOpen(false);
+              setTaskToDelete(null);
+            }}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={deleteTask.isPending}
+            onClick={() => taskToDelete && deleteTask.mutate(taskToDelete.id)}
+            className="flex-1"
+          >
+            Delete task
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={taskDuplicateOpen}
+        onClose={() => {
+          setTaskDuplicateOpen(false);
+          setTaskToDuplicate(null);
+        }}
+        title="Duplicate task"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!canSaveTaskDuplicate) return;
+            duplicateTask.mutate();
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Title"
+            value={dupTitle}
+            onChange={(e) => setDupTitle(e.target.value)}
+            required
+          />
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Description
+            </label>
+            <textarea
+              value={dupDescription}
+              onChange={(e) => setDupDescription(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Status</label>
+            <select
+              value={dupStatus}
+              onChange={(e) => setDupStatus(e.target.value as TaskStatus)}
+              className={selectClass}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s} className={selectOptionClass}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Priority</label>
+            <select
+              value={dupPriority}
+              onChange={(e) => setDupPriority(e.target.value as TaskPriority)}
+              className={selectClass}
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p} className={selectOptionClass}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Assignee</label>
+            <select
+              value={dupAssignee}
+              onChange={(e) => setDupAssignee(e.target.value)}
+              className={selectClass}
+            >
+              <option value="" className={selectOptionClass}>
+                Unassigned
+              </option>
+              {teamMembers?.map((m) => (
+                <option key={m._id} value={m._id} className={selectOptionClass}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Due date"
+            type="date"
+            value={dupDueDate}
+            onChange={(e) => setDupDueDate(e.target.value)}
+          />
+          {!canSaveTaskDuplicate && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Change the title to enable saving.
+            </p>
+          )}
+          <Button
+            type="submit"
+            loading={duplicateTask.isPending}
+            disabled={!canSaveTaskDuplicate}
+            className="w-full"
+          >
+            Duplicate task
+          </Button>
+        </form>
       </Modal>
     </div>
   );

@@ -25,8 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="min-h-full font-sans antialiased">
-        <AppProviders>{children}</AppProviders>
+      <body className="h-full overflow-hidden font-sans antialiased">
+        <AppProviders>
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">{children}</div>
+        </AppProviders>
       </body>
     </html>
   );

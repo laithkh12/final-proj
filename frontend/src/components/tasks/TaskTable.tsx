@@ -3,6 +3,7 @@
 import { memo, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { Trash2, Copy } from 'lucide-react';
 import type { Task, TaskPriority, TaskStatus } from '@/types';
 import { cn } from '@/utils/cn';
 
@@ -27,9 +28,12 @@ const optionClass = 'bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-1
 interface TaskTableProps {
   tasks: Task[];
   onStatusChange?: (id: string, status: TaskStatus) => void;
+  canDelete?: boolean;
+  onDelete?: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
 }
 
-function TaskTableComponent({ tasks, onStatusChange }: TaskTableProps) {
+function TaskTableComponent({ tasks, onStatusChange, canDelete, onDelete, onDuplicate }: TaskTableProps) {
   const handleChange = useCallback(
     (id: string, status: TaskStatus) => onStatusChange?.(id, status),
     [onStatusChange]
@@ -47,6 +51,11 @@ function TaskTableComponent({ tasks, onStatusChange }: TaskTableProps) {
             <th className="px-4 py-3 font-medium">Priority</th>
             <th className="px-4 py-3 font-medium">Assignee</th>
             <th className="px-4 py-3 font-medium">Due</th>
+            {(canDelete || onDuplicate) && (
+              <th className="px-4 py-3 font-medium">
+                <span className="sr-only">Actions</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-slate-950">
@@ -88,6 +97,32 @@ function TaskTableComponent({ tasks, onStatusChange }: TaskTableProps) {
               <td className="px-4 py-3 text-slate-500">
                 {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : '—'}
               </td>
+              {(canDelete || onDuplicate) && (
+                <td className="px-4 py-3">
+                  <div className="flex gap-1">
+                    {onDuplicate && (
+                      <button
+                        type="button"
+                        aria-label={`Duplicate ${task.title}`}
+                        onClick={() => onDuplicate(task)}
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-400"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${task.title}`}
+                        onClick={() => onDelete?.(task)}
+                        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

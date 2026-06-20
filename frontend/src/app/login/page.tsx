@@ -62,7 +62,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-slate-50 px-4 py-8 dark:bg-slate-950">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
         <Link href="/" className="text-xl font-bold text-indigo-600">
           TeamFlow
@@ -125,7 +125,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-1 items-center justify-center py-8">
           Loading...
         </div>
       }
