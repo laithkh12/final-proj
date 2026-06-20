@@ -2,18 +2,18 @@
 
 A production-ready fullstack collaboration platform where teams create workspaces, manage projects, assign tasks, comment, and track activity — built for the Fullstack Development final project.
 
-## Live URLs (fill after deployment)
+## Live URLs
 
 | Service | URL |
 |---------|-----|
-| Frontend (Vercel) | `https://your-app.vercel.app` |
-| Backend (Render) | `https://your-api.onrender.com` |
-| API Docs (Swagger) | `https://your-api.onrender.com/api-docs` |
+| Frontend (Vercel) | https://final-proj-sandy.vercel.app |
+| Backend (Render) | https://final-proj-yjse.onrender.com |
+| API Docs (Swagger) | https://final-proj-yjse.onrender.com/api-docs |
 | MongoDB | MongoDB Atlas cluster |
 
 ## Features
 
-- **Authentication** — Signup, login, logout with JWT + bcrypt (MongoDB users)
+- **Authentication** — Signup, login, logout with httpOnly cookie sessions + bcrypt (MongoDB users)
 - **Workspaces** — Create, update, delete; invite members with roles (owner, admin, member)
 - **Role-based access** — Admins/owners edit or delete projects and delete tasks; members can still create and update tasks
 - **Team roster** — Demo assignees (Alice, Bob, Carol, David) per workspace; separate from login accounts
@@ -31,7 +31,7 @@ A production-ready fullstack collaboration platform where teams create workspace
 | Frontend | Next.js App Router, TypeScript, TailwindCSS, Zustand, TanStack Query |
 | Backend | Node.js, Express, TypeScript, Mongoose |
 | Database | MongoDB Atlas |
-| Auth | JWT, bcrypt, httpOnly cookies |
+| Auth | JWT in httpOnly cookies (proxied via Vercel in production) |
 | API Docs | Swagger OpenAPI at `/api-docs` |
 
 ## Project Structure
@@ -67,8 +67,11 @@ COOKIE_SECURE=false
 ### Frontend (`frontend/.env.local`)
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_API_URL=/api
+API_PROXY_URL=http://localhost:5000
 ```
+
+The browser always calls same-origin `/api/*`. In dev, the Next.js catch-all route at `src/app/api/[...path]/route.ts` forwards those requests to `API_PROXY_URL`.
 
 ## Run Locally
 
@@ -143,15 +146,33 @@ Full list in [docs/api-endpoints.md](docs/api-endpoints.md).
 ### Backend (Render)
 
 1. New **Web Service** → connect GitHub repo, root directory: `backend`
-2. Build: `npm install && npm run build`
+2. Build: `npm install --include=dev && npm run build`
 3. Start: `npm start`
-4. Environment: `MONGODB_URI`, `JWT_SECRET`, `CLIENT_URL` (Vercel URL), `NODE_ENV=production`, `COOKIE_SECURE=true`
+4. Health check path: `/health`
+5. Environment:
+
+| Key | Value |
+|-----|-------|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | Atlas connection string |
+| `JWT_SECRET` | Long random string |
+| `JWT_EXPIRES_IN` | `7d` |
+| `CLIENT_URL` | `https://final-proj-sandy.vercel.app` |
+| `COOKIE_SECURE` | `true` |
 
 ### Frontend (Vercel)
 
 1. Import repo, root directory: `frontend`
-2. Env: `NEXT_PUBLIC_API_URL=https://your-api.onrender.com/api`
-3. Deploy
+2. Environment (Production):
+
+| Key | Value |
+|-----|-------|
+| `NEXT_PUBLIC_API_URL` | `/api` |
+| `API_PROXY_URL` | `https://final-proj-yjse.onrender.com` |
+
+**Important:** `API_PROXY_URL` is the full Render URL (no `/api` suffix). Do not point `NEXT_PUBLIC_API_URL` at Render — cookies require same-origin `/api` requests through the Vercel proxy.
+
+3. Deploy, then verify: `GET https://final-proj-sandy.vercel.app/api/auth/me` → JSON 401 (not a Next.js 404 page)
 
 See [docs/deployment-guide.md](docs/deployment-guide.md) for details.
 

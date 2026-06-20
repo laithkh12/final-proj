@@ -1,7 +1,8 @@
 # TeamFlow API Endpoints
 
-**Base URL:** `{SERVER}/api`  
-**Auth:** `Authorization: Bearer <token>` or httpOnly cookie `token`
+**Base URL (direct / Swagger / Postman):** `https://final-proj-yjse.onrender.com/api`  
+**Base URL (browser in production):** `/api` on the Vercel frontend (proxied to Render)  
+**Auth:** httpOnly cookie `token` (browser) or `Authorization: Bearer <token>` (API tools)
 
 ## Auth
 
@@ -16,9 +17,12 @@
 ```json
 {
   "success": true,
-  "data": { "user": { "_id", "name", "email" }, "token": "jwt..." }
+  "data": { "user": { "_id", "name", "email" } },
+  "message": "Logged in successfully"
 }
 ```
+
+Session token is set in an httpOnly cookie (`token`), not returned in the JSON body.
 
 ## Users
 
