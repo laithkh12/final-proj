@@ -79,10 +79,22 @@ mongodb+srv://user:PASSWORD@cluster0.xxxxx.mongodb.net/teamflow?retryWrites=true
 
 - [ ] Signup works on production
 - [ ] Create workspace → project → task
+- [ ] Assign task to demo team member (Alice/Bob/Carol/David)
+- [ ] Invite a second real user and confirm they see the shared workspace
 - [ ] Comments and activity log visible
+- [ ] Admin-only buttons (edit/delete project, delete task) behave correctly by role
 - [ ] Swagger `/api-docs` loads
 - [ ] No CORS errors in browser console
 - [ ] MongoDB Atlas shows collections with data
+
+### Upgrading an older database
+
+If you deployed before task assignees used `team_members`:
+
+```bash
+cd backend
+npm run migrate:task-assignees
+```
 
 ---
 

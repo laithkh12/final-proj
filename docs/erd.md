@@ -146,4 +146,12 @@ cd backend
 npm run migrate:task-assignees
 ```
 
-This clears assignees that are not valid `team_members` in the same workspace.
+This script:
+
+1. Seeds demo `team_members` on every workspace
+2. Maps legacy User assignees to a matching TeamMember by email when possible
+3. Clears assignees that still do not reference a valid `team_members` row in the same workspace
+
+## Cascade deletes
+
+When a **workspace**, **project**, or **task** is deleted, related **comments** are removed as well. Deletes use optional MongoDB transactions (Atlas/replica set) with a non-transactional fallback on standalone MongoDB.

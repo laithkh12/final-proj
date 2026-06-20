@@ -22,6 +22,23 @@ Teams often scatter work across chat apps, spreadsheets, and ad-hoc tools. TeamF
 - What changed (activity timeline)
 - Who has access (roles: owner, admin, member)
 
+### Access control (RBAC)
+
+| Action | owner | admin | member |
+|--------|-------|-------|--------|
+| View workspace / project / task | ✅ | ✅ | ✅ |
+| Create project / task | ✅ | ✅ | ✅ |
+| Update task | ✅ | ✅ | ✅ |
+| Edit / delete project | ✅ | ✅ | ❌ |
+| Delete task | ✅ | ✅ | ❌ |
+| Invite member | ✅ | ✅ | ❌ |
+| Invite admin | ✅ | ❌ | ❌ |
+| Remove member | ✅ | ✅* | ❌ |
+| Delete workspace | ✅ | ❌ | ❌ |
+| Delete own comment | ✅ | ✅ | ✅ |
+
+\* Admins cannot remove the owner or themselves.
+
 ---
 
 ## 2. Mockups / Wireframes
@@ -115,6 +132,27 @@ See [api-endpoints.md](./api-endpoints.md) for the complete REST API reference.
 
 ## 9. Team roster (assignees)
 
-Task assignees reference the **`team_members`** collection (not login `users`). Each new workspace is auto-seeded with four demo members (Alice, Bob, Carol, David) for assignment in the UI.
+Task assignees reference the **`team_members`** collection (not login `users`). Each new workspace is auto-seeded with four demo members:
+
+| Name | Email | Role label |
+|------|-------|------------|
+| Alice Chen | `alice@teamflow.demo` | Frontend developer |
+| Bob Martinez | `bob@teamflow.demo` | Backend developer |
+| Carol Nguyen | `carol@teamflow.demo` | Product designer |
+| David Kim | `david@teamflow.demo` | QA engineer |
+
+These emails are **roster labels for assignment only**. They do not create login accounts. To collaborate in the app, invite a real signed-up user by email via **Workspace → Invite member**.
+
+Legacy workspaces missing the demo roster are backfilled when `GET /workspaces/:id/team-members` is called.
 
 Custom team members beyond the seed roster are **not** managed via the app UI in this version; use `npm run seed:team-members` or extend the API for production use.
+
+### Data cleanup scripts
+
+```bash
+cd backend
+npm run seed:team-members      # seed demo roster on all workspaces
+npm run migrate:task-assignees # map old User assignees → TeamMember by email, then clear invalid refs
+```
+
+Deleting a project, task, or workspace cascades to related comments (with optional MongoDB transactions when supported).

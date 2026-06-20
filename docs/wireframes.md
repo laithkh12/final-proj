@@ -75,11 +75,12 @@ ASCII wireframes for initial screen planning.
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│ ← Workspace    Sprint 1              [+ New task]      │
+│ ← Workspace    Sprint 1    [Edit] [Delete] [+ New task]│
+│              (Edit/Delete shown for admin/owner only)  │
 │ [Search...........] [Status ▼] [Priority ▼]            │
 ├────────────────────────────────────────────────────────┤
 │ Title      │ Status │ Priority │ Assignee │ Due        │
-│ Fix login  │ Todo   │ High     │ Bob      │ May 25     │
+│ Fix login  │ Todo   │ High     │ Alice    │ May 25     │
 │ API docs   │ Done   │ Low      │ —        │ —          │
 │              [Prev] Page 1 of 3 [Next]                 │
 └────────────────────────────────────────────────────────┘
@@ -89,15 +90,17 @@ ASCII wireframes for initial screen planning.
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│ ← Project                                              │
+│ ← Project                         [Delete task]        │
+│                                   (admin/owner only)   │
 │ Fix login bug                                          │
-│ Status [▼]  Priority [▼]  Due [date]                   │
+│ Status [▼]  Priority [▼]  Assignee [▼]  Due [date]     │
 │                                                        │
 │ Comments (3)                                           │
 │ [Add comment........................] [Post]           │
 │ ┌────────────────────────────────────┐               │
-│ │ Bob: Checked JWT middleware        │               │
+│ │ Bob: Checked JWT middleware   [🗑]  │               │
 │ └────────────────────────────────────┘               │
+│              (delete icon on own comments only)        │
 └────────────────────────────────────────────────────────┘
 ```
 

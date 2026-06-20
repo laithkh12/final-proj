@@ -32,43 +32,76 @@
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/workspaces` | Yes | List user workspaces |
-| POST | `/workspaces` | Yes | Create workspace |
+| POST | `/workspaces` | Yes | Create workspace (seeds demo team members) |
 | GET | `/workspaces/:id` | Yes | Workspace + members + stats |
-| PATCH | `/workspaces/:id` | Yes | Update workspace |
-| DELETE | `/workspaces/:id` | Yes | Delete (owner only) |
-| POST | `/workspaces/:id/members` | Yes | Invite `{ email, role? }` |
-| DELETE | `/workspaces/:id/members/:userId` | Yes | Remove member (admin/owner) |
-| GET | `/workspaces/:id/team-members` | Yes | List assignable team roster |
+| PATCH | `/workspaces/:id` | Yes | Update workspace (admin/owner) |
+| DELETE | `/workspaces/:id` | Yes | Delete workspace + cascade (owner only) |
+| POST | `/workspaces/:id/members` | Yes | Invite `{ email, role? }` (admin/owner; owner only for `role: admin`) |
+| DELETE | `/workspaces/:id/members/:userId` | Yes | Remove member (admin/owner; cannot remove self or owner) |
+| GET | `/workspaces/:id/team-members` | Yes | List assignable team roster (auto-seeds defaults if missing) |
 | GET | `/workspaces/:id/activity` | Yes | Activity log (paginated) |
-| GET | `/workspaces/dashboard/stats` | Yes | Dashboard aggregates |
+| GET | `/workspaces/dashboard/stats` | Yes | Dashboard aggregates for current user |
 
 ## Projects
 
-| Method | Endpoint | Auth |
-|--------|----------|------|
-| GET | `/workspaces/:workspaceId/projects` | Yes |
-| POST | `/workspaces/:workspaceId/projects` | Yes |
-| GET | `/projects/:id` | Yes |
-| PATCH | `/projects/:id` | Yes |
-| DELETE | `/projects/:id` | Yes |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/workspaces/:workspaceId/projects` | Yes | List projects |
+| POST | `/workspaces/:workspaceId/projects` | Yes | Create project |
+| GET | `/projects/:id` | Yes | Returns `{ project, taskStats, myRole }` |
+| PATCH | `/projects/:id` | Yes | Update project (**admin/owner**) |
+| DELETE | `/projects/:id` | Yes | Delete project + tasks + comments (**admin/owner**) |
+
+**Response (GET `/projects/:id`):**
+```json
+{
+  "success": true,
+  "data": {
+    "project": { "_id", "name", "description", "workspace", "color", ... },
+    "taskStats": [{ "_id": "Todo", "count": 3 }],
+    "myRole": "owner"
+  }
+}
+```
 
 ## Tasks
 
-| Method | Endpoint | Auth | Query |
-|--------|----------|------|-------|
+| Method | Endpoint | Auth | Query / body |
+|--------|----------|------|--------------|
 | GET | `/projects/:projectId/tasks` | Yes | `page`, `limit`, `status`, `priority`, `search` |
 | POST | `/projects/:projectId/tasks` | Yes | body: task fields |
-| GET | `/tasks/:id` | Yes | — |
-| PATCH | `/tasks/:id` | Yes | body may include `assignee` (team member id in same workspace, or null) |
-| DELETE | `/tasks/:id` | Yes | — |
+| GET | `/tasks/:id` | Yes | Returns `{ task, myRole }` |
+| PATCH | `/tasks/:id` | Yes | body may include `assignee` (team member id or `null`), `dueDate` (ISO string or `null` to clear) |
+| DELETE | `/tasks/:id` | Yes | Delete task + comments (**admin/owner**) |
+
+**Response (GET `/tasks/:id`):**
+```json
+{
+  "success": true,
+  "data": {
+    "task": { "_id", "title", "status", "assignee", ... },
+    "myRole": "member"
+  }
+}
+```
 
 ## Comments
 
-| Method | Endpoint | Auth |
-|--------|----------|------|
-| GET | `/tasks/:taskId/comments` | Yes |
-| POST | `/tasks/:taskId/comments` | Yes |
-| DELETE | `/comments/:id` | Yes |
+| Method | Endpoint | Auth | Notes |
+|--------|----------|------|-------|
+| GET | `/tasks/:taskId/comments` | Yes | List comments |
+| POST | `/tasks/:taskId/comments` | Yes | Add comment |
+| DELETE | `/comments/:id` | Yes | Delete comment (**author only**) |
+
+## Roles & permissions
+
+| Role | Capabilities |
+|------|----------------|
+| **owner** | Full workspace control; only role that can invite admins |
+| **admin** | Edit/delete projects and tasks; invite/remove members (except owner); cannot invite other admins |
+| **member** | View all content; create projects/tasks; update tasks; add comments; delete own comments |
+
+**Note:** Task **assignees** are `team_members` records (demo roster: Alice, Bob, Carol, David). They are separate from login **users**. Assigning a task to `alice@teamflow.demo` does not give that email a dashboard unless someone signed up with that email and was invited to the workspace.
 
 ## HTTP Status Codes
 

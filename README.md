@@ -15,11 +15,13 @@ A production-ready fullstack collaboration platform where teams create workspace
 
 - **Authentication** — Signup, login, logout with JWT + bcrypt (MongoDB users)
 - **Workspaces** — Create, update, delete; invite members with roles (owner, admin, member)
+- **Role-based access** — Admins/owners edit or delete projects and delete tasks; members can still create and update tasks
+- **Team roster** — Demo assignees (Alice, Bob, Carol, David) per workspace; separate from login accounts
 - **Projects** — CRUD per workspace with color labels
-- **Tasks** — Statuses (Todo, In Progress, Review, Done), priorities, assignees, due dates
-- **Comments** — Threaded discussion on tasks
+- **Tasks** — Statuses (Todo, In Progress, Review, Done), priorities, assignees, due dates (clearable)
+- **Comments** — Discussion on tasks; delete your own comments only
 - **Activity logs** — Audit trail for workspace events
-- **Dashboard** — Task/project statistics and recent activity
+- **Dashboard** — Task/project statistics and recent activity across your workspaces
 - **Performance** — TanStack Query cache, debounced search, pagination, lazy-loaded components, React.memo
 
 ## Tech Stack
@@ -96,7 +98,17 @@ App: http://localhost:3000
 
 ### 3. Create first user
 
-Open http://localhost:3000/login?mode=signup and register.
+Open http://localhost:3000/login?mode=signup and register with your own email.
+
+**Note:** Demo assignee emails like `alice@teamflow.demo` are for the task dropdown only. They are not pre-created login accounts. To test as another collaborator, sign up with a second email and invite that user from the workspace page.
+
+### Optional: database scripts
+
+```bash
+cd backend
+npm run seed:team-members       # seed demo assignees on all workspaces
+npm run migrate:task-assignees  # fix legacy User-based task assignees
+```
 
 ## API Documentation
 
