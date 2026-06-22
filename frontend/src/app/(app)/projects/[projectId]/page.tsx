@@ -27,6 +27,8 @@ import {
 } from "@/lib/queryInvalidation";
 import { canSaveDuplicateTitle } from "@/utils/duplicate";
 import { PageBackLink } from "@/components/layout/PageBackLink";
+import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+import { buildAiContext } from "@/components/ai/aiAssistantConfig";
 
 const TaskTable = dynamic(
   () => import("@/components/tasks/TaskTable").then((m) => m.TaskTable),
@@ -283,6 +285,11 @@ export default function ProjectPage({
           <Button onClick={() => setOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> New task
           </Button>
+          <AiAssistantPanel
+            label="Plan with AI"
+            context={buildAiContext("project", { projectId })}
+            projectName={project?.name}
+          />
         </div>
       </div>
 

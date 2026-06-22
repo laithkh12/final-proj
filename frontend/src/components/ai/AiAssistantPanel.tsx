@@ -4,13 +4,23 @@ import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { AiAssistantBlade } from './AiAssistantBlade';
+import type { AiPageContextPayload } from '@/types';
 
 interface AiAssistantPanelProps {
   className?: string;
   label?: string;
+  context: AiPageContextPayload;
+  workspaceName?: string;
+  projectName?: string;
 }
 
-export function AiAssistantPanel({ className, label = 'AI Assist' }: AiAssistantPanelProps) {
+export function AiAssistantPanel({
+  className,
+  label = 'AI Assist',
+  context,
+  workspaceName,
+  projectName,
+}: AiAssistantPanelProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +37,13 @@ export function AiAssistantPanel({ className, label = 'AI Assist' }: AiAssistant
         {label}
       </button>
 
-      <AiAssistantBlade open={open} onClose={() => setOpen(false)} />
+      <AiAssistantBlade
+        open={open}
+        onClose={() => setOpen(false)}
+        context={context}
+        workspaceName={workspaceName}
+        projectName={projectName}
+      />
     </>
   );
 }

@@ -20,6 +20,8 @@ import { useAuthStore } from "@/store/authStore";
 import { cn, selectClass, selectOptionClass } from "@/utils/cn";
 import { invalidateAfterTaskChange } from "@/lib/queryInvalidation";
 import { PageBackLink } from "@/components/layout/PageBackLink";
+import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+import { buildAiContext } from "@/components/ai/aiAssistantConfig";
 
 const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
 const PRIORITIES: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -218,6 +220,15 @@ export default function TaskDetailPage({
     <div className="max-w-3xl">
       <PageBackLink href="/projects">← Back to projects</PageBackLink>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+          <AiAssistantPanel
+            label="Plan with AI"
+            context={buildAiContext("task", { taskId })}
+            projectName={
+              task?.project && typeof task.project === "object"
+                ? (task.project as { name?: string }).name
+                : undefined
+            }
+          />
           {isDirty && (
             <Button onClick={handleSave} loading={updateTask.isPending}>
               Save changes

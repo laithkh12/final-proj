@@ -5,6 +5,7 @@ import workspaceRoutes from './workspace.routes';
 import { workspaceProjectsRouter, projectRouter } from './project.routes';
 import { projectTasksRouter, taskRouter } from './task.routes';
 import { taskCommentsRouter, commentRouter } from './comment.routes';
+import aiRoutes from './ai.routes';
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use('/projects/:projectId/tasks', projectTasksRouter);
 router.use('/tasks', taskRouter);
 router.use('/tasks/:taskId/comments', taskCommentsRouter);
 router.use('/comments', commentRouter);
+router.use('/ai', aiRoutes);
 
 export default router;

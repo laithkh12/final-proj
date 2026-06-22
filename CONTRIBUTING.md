@@ -1,8 +1,16 @@
 # Contributing to TeamFlow
 
-This project is designed for **pair development** on GitHub as required by the Fullstack Development final project.
+This project was built for the **Fullstack Development final project**. Pair development (feature branches + PRs) is supported but **not required** — solo work on `main` with clear commits is fine.
 
-## Branch Strategy
+## Solo development
+
+If you do not have a partner:
+
+1. Work on `main` or short-lived `feature/*` branches.
+2. Use clear commit messages (`feat:`, `fix:`, `docs:`).
+3. Push regularly to GitHub for submission and deployment.
+
+## Branch Strategy (optional, for pairs)
 
 | Branch | Purpose |
 |--------|---------|

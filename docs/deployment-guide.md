@@ -60,6 +60,8 @@ mongodb+srv://user:PASSWORD@cluster0.xxxxx.mongodb.net/teamflow?retryWrites=true
 | `JWT_EXPIRES_IN` | `7d` |
 | `CLIENT_URL` | `https://final-proj-sandy.vercel.app` |
 | `COOKIE_SECURE` | `true` |
+| `OPENAI_API_KEY` | OpenAI API key (for AI planner) |
+| `OPENAI_MODEL` | `gpt-4o-mini` (optional) |
 
 6. Deploy → note URL: `https://final-proj-yjse.onrender.com`
 

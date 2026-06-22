@@ -4,7 +4,10 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function getBackendBase(): { base: string } | { error: string } {
-  const raw = process.env.API_PROXY_URL?.trim().replace(/^["']|["']$/g, '');
+  const raw =
+    process.env.API_PROXY_URL?.trim().replace(/^["']|["']$/g, '') ||
+    (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '');
+
   if (!raw) {
     return {
       error:
@@ -115,12 +118,21 @@ async function proxyRequest(
       headers: responseHeaders,
     });
   } catch (error) {
+    const refused =
+      error instanceof Error &&
+      ('code' in error
+        ? (error as NodeJS.ErrnoException).code === 'ECONNREFUSED'
+        : String(error.cause ?? '').includes('ECONNREFUSED'));
+
     console.error('API proxy error:', error);
     return NextResponse.json(
       {
         success: false,
-        message:
-          'Failed to reach backend API. Check that API_PROXY_URL on Vercel is https://final-proj-yjse.onrender.com (no /api suffix).',
+        message: refused
+          ? process.env.NODE_ENV === 'development'
+            ? 'Backend is not reachable at http://localhost:5000. Start it with `cd backend && npm run dev` and wait until you see "TeamFlow API running on port 5000", then retry.'
+            : 'Failed to reach backend API. Check API_PROXY_URL on Vercel.'
+          : 'Failed to reach backend API. Check that API_PROXY_URL on Vercel is https://final-proj-yjse.onrender.com (no /api suffix).',
       },
       { status: 502 }
     );

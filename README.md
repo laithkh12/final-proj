@@ -22,6 +22,7 @@ A production-ready fullstack collaboration platform where teams create workspace
 - **Comments** — Discussion on tasks; delete your own comments only
 - **Activity logs** — Audit trail for workspace events
 - **Dashboard** — Task/project statistics and recent activity across your workspaces
+- **AI planner** — Create workspaces, projects, and tasks from natural language; update the current task from the task page
 - **Performance** — TanStack Query cache, debounced search, pagination, lazy-loaded components, React.memo
 
 ## Tech Stack
@@ -62,6 +63,8 @@ JWT_SECRET=your-long-random-secret
 JWT_EXPIRES_IN=7d
 CLIENT_URL=http://localhost:3000
 COOKIE_SECURE=false
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 ### Frontend (`frontend/.env.local`)
@@ -176,7 +179,20 @@ Full list in [docs/api-endpoints.md](docs/api-endpoints.md).
 
 See [docs/deployment-guide.md](docs/deployment-guide.md) for details.
 
-## Git Workflow (Pairs)
+## AI assistant vs manual UI
+
+| Action | AI planner | Manual UI |
+|--------|------------|-----------|
+| Create workspace / project / task | Dashboard, workspace, or project page → **Plan with AI** | Create buttons on each page |
+| Update task (title, priority, status, assignee) | **Task detail** → **Plan with AI** | Edit fields on task page → Save |
+| Edit workspace / project | — | Workspace or project page → Edit (admin) |
+| Invite members | — | Workspace page → Invite (admin) |
+
+Workspace edits and member invites use the standard UI so emails and permissions stay explicit.
+
+## Git workflow
+
+This repo is maintained as a **solo** final project. Pair workflow (feature branches + PRs) is documented in [CONTRIBUTING.md](CONTRIBUTING.md) if you collaborate later.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md):
 

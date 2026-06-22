@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 
-dotenv.config();
+// In dev, .env wins over stale machine/user OPENAI_API_KEY placeholders.
+dotenv.config({
+  override: process.env.NODE_ENV !== 'production',
+});
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -28,4 +31,6 @@ export const env = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
   cookieSecure: process.env.COOKIE_SECURE === 'true' || isProduction,
   isProduction,
+  openaiApiKey: process.env.OPENAI_API_KEY || '',
+  openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
 };

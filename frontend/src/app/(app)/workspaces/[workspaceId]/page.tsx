@@ -30,6 +30,8 @@ import { invalidateAfterProjectCreate } from "@/lib/queryInvalidation";
 import { queryKeys } from "@/lib/queryInvalidation";
 import { PageBackLink } from "@/components/layout/PageBackLink";
 import { canSaveDuplicateTitle } from "@/utils/duplicate";
+import { AiAssistantPanel } from "@/components/ai/AiAssistantPanel";
+import { buildAiContext } from "@/components/ai/aiAssistantConfig";
 
 export default function WorkspaceDetailPage({
   params,
@@ -241,6 +243,11 @@ export default function WorkspaceDetailPage({
           <Button onClick={() => setProjectOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> New project
           </Button>
+          <AiAssistantPanel
+            label="Plan with AI"
+            context={buildAiContext("workspace", { workspaceId })}
+            workspaceName={workspace.name}
+          />
         </div>
       </div>
 

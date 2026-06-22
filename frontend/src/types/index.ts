@@ -111,3 +111,128 @@ export interface DashboardStats {
 export interface AuthResponse {
   user: User;
 }
+
+export type AiPageContext = 'dashboard' | 'workspace' | 'project' | 'task';
+
+export type AiIntent =
+  | 'create_workspace'
+  | 'create_project'
+  | 'create_task'
+  | 'create_plan'
+  | 'update_task'
+  | 'update_tasks'
+  | 'general';
+
+export type AiProposalAction =
+  | 'create_workspace'
+  | 'create_project'
+  | 'create_task'
+  | 'create_plan'
+  | 'update_task'
+  | 'update_tasks';
+
+export type AiStatus = 'gathering' | 'ready';
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AiPageContextPayload {
+  page: AiPageContext;
+  workspaceId?: string;
+  projectId?: string;
+  taskId?: string;
+}
+
+export interface AiProposal {
+  action: AiProposalAction;
+  workspaceId?: string;
+  projectId?: string;
+  taskId?: string;
+  taskTitle?: string;
+  workspace?: { name: string; description?: string };
+  project?: { name: string; description?: string; color?: string };
+  task?: {
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    assigneeId?: string;
+    assigneeName?: string;
+    dueDate?: string;
+    clearAssignee?: boolean;
+  };
+  tasks?: {
+    title: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    assigneeId?: string;
+    assigneeName?: string;
+    dueDate?: string;
+  }[];
+  taskUpdates?: {
+    taskTitle: string;
+    taskId?: string;
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: TaskPriority;
+    assigneeId?: string;
+    assigneeName?: string;
+    dueDate?: string;
+    clearAssignee?: boolean;
+  }[];
+}
+
+export interface AiApplyTasksUpdateResult {
+  type: 'tasks_updated';
+  workspaceId: string;
+  projectId: string;
+  taskIds: string[];
+  tasks: { _id: string; title: string }[];
+}
+
+export interface AiApplyPlanResult {
+  type: 'plan';
+  workspaceId: string;
+  projectId?: string;
+  taskIds: string[];
+  workspace?: { _id: string; name: string };
+  project?: { _id: string; name: string };
+  tasks: { _id: string; title: string }[];
+}
+
+export interface AiChatResult {
+  message: string;
+  intent: AiIntent;
+  status: AiStatus;
+  missingFields: string[];
+  proposal: AiProposal | null;
+}
+
+export type AiApplyResult =
+  | {
+      type: 'workspace';
+      entity: Workspace;
+    }
+  | {
+      type: 'project';
+      entity: Project;
+      workspaceId: string;
+    }
+  | {
+      type: 'task';
+      entity: Task;
+      workspaceId: string;
+      projectId: string;
+    }
+  | {
+      type: 'task_updated';
+      entity: Task;
+      workspaceId: string;
+      projectId: string;
+    }
+  | AiApplyTasksUpdateResult
+  | AiApplyPlanResult;

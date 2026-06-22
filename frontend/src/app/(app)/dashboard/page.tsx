@@ -7,6 +7,7 @@ import { CheckSquare, FolderKanban, LayoutList, Sparkles, Users } from 'lucide-r
 import { workspaceService } from '@/services/workspace.service';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { AiAssistantPanel } from '@/components/ai/AiAssistantPanel';
+import { buildAiContext } from '@/components/ai/aiAssistantConfig';
 
 const statusColors: Record<string, string> = {
   Todo: 'bg-slate-500',
@@ -64,7 +65,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <AiAssistantPanel label="Open AI Planner" />
+          <AiAssistantPanel label="Open AI Planner" context={buildAiContext('dashboard')} />
         </div>
       </div>
 
@@ -160,7 +161,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8 flex justify-center">
-        <AiAssistantPanel label="Plan with AI" />
+        <AiAssistantPanel label="Plan with AI" context={buildAiContext('dashboard')} />
       </div>
     </div>
   );

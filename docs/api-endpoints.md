@@ -107,6 +107,48 @@ Session token is set in an httpOnly cookie (`token`), not returned in the JSON b
 
 **Note:** Task **assignees** are `team_members` records (demo roster: Alice, Bob, Carol, David). They are separate from login **users**. Assigning a task to `alice@teamflow.demo` does not give that email a dashboard unless someone signed up with that email and was invited to the workspace.
 
+## AI Planner
+
+| Method | Endpoint | Auth | Body | Description |
+|--------|----------|------|------|-------------|
+| POST | `/ai/chat` | Yes | `{ messages, context }` | Conversational planner; returns proposal when ready |
+| POST | `/ai/apply` | Yes | `{ proposal }` | Create workspace, project, or task from reviewed proposal |
+
+**Chat body:**
+```json
+{
+  "messages": [{ "role": "user", "content": "Create a Backend API project" }],
+  "context": {
+    "page": "dashboard | workspace | project | task",
+    "workspaceId": "optional",
+    "projectId": "optional",
+    "taskId": "optional"
+  }
+}
+```
+
+**Chat response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "What should the project be called?",
+    "intent": "create_project",
+    "status": "gathering | ready",
+    "missingFields": ["project.name"],
+    "proposal": null
+  }
+}
+```
+
+When `status` is `ready`, `proposal` includes the entity to create or update. User confirms via `/ai/apply`.
+
+**`update_task`** — only from the task page context; `proposal.taskId` + partial `proposal.task` fields.
+
+Requires `OPENAI_API_KEY` on the backend.
+
+---
+
 ## HTTP Status Codes
 
 | Code | Usage |
