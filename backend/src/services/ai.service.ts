@@ -10,6 +10,7 @@ import type {
   AiProposalTaskUpdate,
 } from '../types/ai';
 import { ApiError } from '../utils/ApiError';
+import { sanitizeAiProposal } from '../utils/sanitizeAiProposal';
 
 const RESPONSE_SCHEMA = `{
   "message": "string — friendly reply to the user",
@@ -461,6 +462,8 @@ function enrichAndValidateResult(
       missingFields: [...missingFields, 'task.assigneeName'],
     };
   }
+
+  sanitizeAiProposal(proposal);
 
   return { ...result, message, proposal };
 }
