@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   description: 'Collaborate, manage projects, assign tasks, and track team activity.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,9 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
-      <body className="h-full overflow-hidden font-sans antialiased">
+      <body className="h-dvh overflow-hidden font-sans antialiased">
         <AppProviders>
-          <div className="flex h-full min-h-0 flex-col overflow-hidden">{children}</div>
+          <div className="flex h-dvh min-h-0 w-full max-w-full flex-col overflow-hidden">{children}</div>
         </AppProviders>
       </body>
     </html>

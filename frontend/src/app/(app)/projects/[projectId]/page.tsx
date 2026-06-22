@@ -26,6 +26,7 @@ import {
   queryKeys,
 } from "@/lib/queryInvalidation";
 import { canSaveDuplicateTitle } from "@/utils/duplicate";
+import { PageBackLink } from "@/components/layout/PageBackLink";
 
 const TaskTable = dynamic(
   () => import("@/components/tasks/TaskTable").then((m) => m.TaskTable),
@@ -260,14 +261,7 @@ export default function ProjectPage({
 
   return (
     <div>
-      <div className="mb-2 text-sm text-slate-500">
-        <Link
-          href={`/workspaces/${project?.workspace}`}
-          className="hover:text-indigo-600"
-        >
-          ← Back to workspace
-        </Link>
-      </div>
+      <PageBackLink href={`/workspaces/${project?.workspace}`}>← Back to workspace</PageBackLink>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: project?.color }}>
@@ -293,7 +287,7 @@ export default function ProjectPage({
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative min-w-[200px] flex-1">
+        <div className="relative min-w-0 flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={search}

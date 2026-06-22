@@ -21,6 +21,19 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  max-width: 100%;
+  overscroll-behavior: none;
+}
+
+@supports (height: 100dvh) {
+  html,
+  body {
+    height: 100dvh;
+  }
+}
+
+html {
+  overflow-x: hidden;
 }
 
 @keyframes ai-backdrop-in {

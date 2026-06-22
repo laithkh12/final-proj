@@ -28,6 +28,7 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { invalidateAfterProjectCreate } from "@/lib/queryInvalidation";
 import { queryKeys } from "@/lib/queryInvalidation";
+import { PageBackLink } from "@/components/layout/PageBackLink";
 import { canSaveDuplicateTitle } from "@/utils/duplicate";
 
 export default function WorkspaceDetailPage({
@@ -211,6 +212,7 @@ export default function WorkspaceDetailPage({
 
   return (
     <div>
+      <PageBackLink href="/workspaces">← Back to workspaces</PageBackLink>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{workspace.name}</h1>

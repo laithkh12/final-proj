@@ -70,24 +70,44 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: 'Workspaces', value: stats.workspaceCount, icon: Users, color: 'text-indigo-600' },
-          { label: 'Projects', value: stats.projectCount, icon: FolderKanban, color: 'text-purple-600' },
-          { label: 'Total Tasks', value: stats.totalTasks, icon: CheckSquare, color: 'text-blue-600' },
+          {
+            label: 'Workspaces',
+            value: stats.workspaceCount,
+            icon: Users,
+            color: 'text-indigo-600',
+            href: '/workspaces',
+          },
+          {
+            label: 'Projects',
+            value: stats.projectCount,
+            icon: FolderKanban,
+            color: 'text-purple-600',
+            href: '/projects',
+          },
+          {
+            label: 'Total Tasks',
+            value: stats.totalTasks,
+            icon: CheckSquare,
+            color: 'text-blue-600',
+            href: '/tasks',
+          },
           {
             label: 'Done',
             value: stats.tasksByStatus?.Done || 0,
             icon: LayoutList,
             color: 'text-green-600',
+            href: '/tasks',
           },
         ].map((card) => (
-          <div
+          <Link
             key={card.label}
-            className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"
+            href={card.href}
+            className="rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700"
           >
             <card.icon className={`mb-2 h-5 w-5 ${card.color}`} />
             <p className="text-2xl font-bold">{card.value}</p>
             <p className="text-sm text-slate-500">{card.label}</p>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -122,7 +142,7 @@ export default function DashboardPage() {
             <ul className="space-y-3">
               {stats.recentActivity.map((log) => (
                 <li key={log._id} className="text-sm">
-                  <p className="text-slate-800 dark:text-slate-200">{log.message}</p>
+                  <p className="break-words text-slate-800 dark:text-slate-200">{log.message}</p>
                   <p className="text-xs text-slate-400">
                     {typeof log.user === 'object' ? log.user.name : 'User'} ·{' '}
                     {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}

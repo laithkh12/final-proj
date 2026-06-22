@@ -19,6 +19,7 @@ import { CardSkeleton } from "@/components/ui/Skeleton";
 import { useAuthStore } from "@/store/authStore";
 import { cn, selectClass, selectOptionClass } from "@/utils/cn";
 import { invalidateAfterTaskChange } from "@/lib/queryInvalidation";
+import { PageBackLink } from "@/components/layout/PageBackLink";
 
 const STATUSES: TaskStatus[] = ["Todo", "In Progress", "Review", "Done"];
 const PRIORITIES: TaskPriority[] = ["Low", "Medium", "High", "Urgent"];
@@ -215,14 +216,8 @@ export default function TaskDetailPage({
 
   return (
     <div className="max-w-3xl">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Link
-          href={`/projects/${projectId}`}
-          className="text-sm text-indigo-600 hover:underline"
-        >
-          ← Back to project
-        </Link>
-        <div className="flex flex-wrap gap-2">
+      <PageBackLink href="/projects">← Back to projects</PageBackLink>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
           {isDirty && (
             <Button onClick={handleSave} loading={updateTask.isPending}>
               Save changes
@@ -237,7 +232,6 @@ export default function TaskDetailPage({
               <Trash2 className="mr-2 h-4 w-4" /> Delete task
             </Button>
           )}
-        </div>
       </div>
 
       <div className="mt-4 space-y-4">

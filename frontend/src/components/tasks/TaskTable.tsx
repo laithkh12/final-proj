@@ -42,7 +42,7 @@ function TaskTableComponent({ tasks, onStatusChange, canDelete, onDelete, onDupl
   const rows = useMemo(() => tasks, [tasks]);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+    <div className="max-w-full min-w-0 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-slate-50 dark:bg-slate-900">
           <tr>

@@ -3,8 +3,8 @@ import { ArrowRight, CheckCircle, Users, Zap } from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gradient-to-b from-indigo-50 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+    <div className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-gradient-to-b from-indigo-50 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6 sm:px-6">
         <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">TeamFlow</span>
         <div className="flex gap-3">
           <Link
