@@ -214,6 +214,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md):
 | [specification.md](docs/specification.md) | Full system spec |
 | [erd.md](docs/erd.md) | Database ERD |
 | [api-endpoints.md](docs/api-endpoints.md) | API table |
+| [ai-server.md](docs/ai-server.md) | AI planner backend architecture |
+| [ai-flows.md](docs/ai-flows.md) | AI planner user flows and scenarios |
 | [user-flow.md](docs/user-flow.md) | User journeys |
 | [deployment-guide.md](docs/deployment-guide.md) | Deploy steps |
 | [wireframes.md](docs/wireframes.md) | Screen wireframes |

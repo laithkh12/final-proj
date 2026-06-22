@@ -6,6 +6,10 @@ import { sanitizeAiProposalBody } from '../middleware/sanitizeAiProposal.middlew
 import { validate } from '../middleware/validate.middleware';
 import { aiApplyValidator, aiChatValidator } from '../validators/ai.validator';
 
+/**
+ * AI planner routes — see docs/ai-flows.md (user flows) and docs/ai-server.md (implementation).
+ */
+
 const router = Router();
 
 router.use(authenticate);

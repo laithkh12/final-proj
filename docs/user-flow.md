@@ -80,3 +80,7 @@ Each create/update/delete logs an ActivityLog entry visible on workspace timelin
 | Delete someone else's comment | 403 "You can only delete your own comments" |
 | Admin invites admin | 403 unless actor is workspace owner |
 | Remove yourself from workspace | 403 "You cannot remove yourself" |
+
+## AI planner flows
+
+For conversational create/update flows (Plan with AI, confirm before save), see [ai-flows.md](./ai-flows.md).

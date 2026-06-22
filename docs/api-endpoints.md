@@ -147,6 +147,8 @@ When `status` is `ready`, `proposal` includes the entity to create or update. Us
 
 Requires `OPENAI_API_KEY` on the backend.
 
+Full server architecture, file map, and apply flow: [ai-server.md](./ai-server.md). User flows and scenarios: [ai-flows.md](./ai-flows.md).
+
 ---
 
 ## HTTP Status Codes
