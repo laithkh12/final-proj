@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Bot, CheckCircle2, Loader2, Send, Sparkles, X } from 'lucide-react';
@@ -73,6 +73,7 @@ function ProposalSummary({ proposal }: { proposal: AiProposal }) {
                 <li key={i}>
                   {t.title}
                   {t.assigneeName ? ` — ${t.assigneeName}` : ''}
+                  {t.status ? `, ${t.status}` : ''}
                   {t.priority ? ` (${t.priority})` : ''}
                 </li>
               ))}
@@ -187,6 +188,11 @@ function ProposalSummary({ proposal }: { proposal: AiProposal }) {
             <span className="font-medium">Priority:</span> {proposal.task.priority}
           </p>
         )}
+        {proposal.task.status && (
+          <p>
+            <span className="font-medium">Status:</span> {proposal.task.status}
+          </p>
+        )}
         {proposal.task.assigneeName && (
           <p>
             <span className="font-medium">Assignee:</span> {proposal.task.assigneeName}
@@ -216,7 +222,24 @@ export function AiAssistantBlade({
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const copy = getAiAssistantCopy(context, { workspaceName, projectName });
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || isClosing || !open) return;
+    const timer = window.setTimeout(focusInput, EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [mounted, isClosing, open, focusInput]);
+
+  useEffect(() => {
+    if (!mounted || isClosing || loading) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === 'assistant') focusInput();
+  }, [messages, loading, mounted, isClosing, focusInput]);
 
   useEffect(() => {
     if (open) {
@@ -503,6 +526,7 @@ export function AiAssistantBlade({
         <div className="border-t border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
           <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900">
             <textarea
+              ref={inputRef}
               rows={3}
               value={input}
               onChange={(e) => setInput(e.target.value)}

@@ -6,6 +6,7 @@ import {
   assertAssigneeInWorkspace,
 } from './teamMember.service';
 import { resolveProjectColor } from '../utils/projectColor';
+import { normalizeAiProposal } from '../utils/sanitizeAiProposal';
 import type {
   AiApplyPlanResult,
   AiApplyTasksUpdateResult,
@@ -326,9 +327,12 @@ async function executeTaskUpdate(
 
 async function applyUpdateTask(userId: string, proposal: AiProposal) {
   assertProposalAction(proposal, 'update_task');
+  normalizeAiProposal(proposal);
   const taskId = proposal.taskId;
   if (!taskId) throw new ApiError(400, 'Task id is required');
-  if (!proposal.task) throw new ApiError(400, 'No task updates provided');
+  if (!proposal.task || !hasTaskUpdateFields(proposal.task)) {
+    throw new ApiError(400, 'No task updates provided');
+  }
 
   const result = await executeTaskUpdate(userId, taskId, proposal.task);
 

@@ -3,6 +3,21 @@ import type { AiProposal, AiProposalTask, AiProposalTaskUpdate } from '../types/
 
 const MONGO_ID = /^[a-f\d]{24}$/i;
 
+function taskUpdateToTaskPatch(update: AiProposalTaskUpdate): AiProposalTask {
+  const { taskTitle: _title, taskId: _id, ...patch } = update;
+  return patch;
+}
+
+/** Fix common AI proposal shape mismatches before validation and apply. */
+export function normalizeAiProposal(proposal: AiProposal): void {
+  if (proposal.action === 'update_task') {
+    if (!proposal.task && proposal.taskUpdates?.length) {
+      proposal.task = taskUpdateToTaskPatch(proposal.taskUpdates[0]);
+      delete proposal.taskUpdates;
+    }
+  }
+}
+
 function normalizePriority(value: string): (typeof TASK_PRIORITIES)[number] | undefined {
   return TASK_PRIORITIES.find((p) => p.toLowerCase() === value.toLowerCase());
 }
@@ -33,6 +48,7 @@ function sanitizeTaskUpdate(item: AiProposalTaskUpdate): void {
 
 /** Normalize AI proposal fields before express-validator and apply logic. */
 export function sanitizeAiProposal(proposal: AiProposal): void {
+  normalizeAiProposal(proposal);
   if (proposal.task) sanitizeTaskFields(proposal.task);
   proposal.tasks?.forEach(sanitizeTaskFields);
   proposal.taskUpdates?.forEach(sanitizeTaskUpdate);

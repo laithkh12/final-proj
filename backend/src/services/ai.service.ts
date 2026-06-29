@@ -10,7 +10,7 @@ import type {
   AiProposalTaskUpdate,
 } from '../types/ai';
 import { ApiError } from '../utils/ApiError';
-import { sanitizeAiProposal } from '../utils/sanitizeAiProposal';
+import { sanitizeAiProposal, normalizeAiProposal } from '../utils/sanitizeAiProposal';
 
 const RESPONSE_SCHEMA = `{
   "message": "string — friendly reply to the user",
@@ -27,8 +27,8 @@ const RESPONSE_SCHEMA = `{
     "projectId": "existing project mongo id (optional)",
     "workspace": { "name": "string", "description": "optional" },
     "project": { "name": "string", "description": "optional", "color": "optional color NAME like blue, green, purple — never ask user for hex" },
-    "task": { "title": "...", "description": "...", "priority": "...", "assigneeName": "...", "assigneeId": "..." },
-    "tasks": [{ "title": "...", "description": "...", "priority": "Low|Medium|High|Urgent", "assigneeName": "Alice Chen or Bob", "assigneeId": "only if roster known" }]
+    "task": { "title": "...", "description": "...", "priority": "Low|Medium|High|Urgent", "status": "Todo|In Progress|Review|Done", "assigneeName": "...", "assigneeId": "..." },
+    "tasks": [{ "title": "...", "description": "...", "priority": "Low|Medium|High|Urgent", "status": "Todo|In Progress|Review|Done", "assigneeName": "Alice Chen or Bob", "assigneeId": "only if roster known" }]
   }
 }`;
 
@@ -44,7 +44,7 @@ function buildSystemPrompt(ctx: AiContextSnapshot): string {
     '2. Required fields:',
     '   - create_workspace / plan.workspace: name (required), description (optional)',
     '   - create_project / plan.project: workspaceId OR new workspace in same plan, name (required), description (optional)',
-    '   - create_task / plan.tasks: projectId OR new project in same plan, title per task (required)',
+    '   - create_task / plan.tasks: projectId OR new project in same plan, title per task (required); include priority, status, assigneeName when the user specifies them',
     '3. NEVER ask the user for hex color codes (#6366f1). Omit project.color or pick a color name (blue, green, purple, orange, red). Default to blue if unsure.',
     '4. If any required field is missing, set status="gathering", list missingFields, and ask in plain language.',
     '5. Only use workspaceId/projectId/assigneeId from the lists below — never invent IDs.',
@@ -53,7 +53,7 @@ function buildSystemPrompt(ctx: AiContextSnapshot): string {
     '8. For new workspaces in a plan, use assigneeName from the default roster (Alice Chen, Bob Martinez, Carol Nguyen, David Kim). Leave assigneeId empty.',
     '9. For assignees in existing workspaces, set assigneeId from the roster and assigneeName for display.',
     '10. When all required fields are known and assignee names are valid, set status="ready". For multi-entity requests use action="create_plan".',
-    '11. UPDATE TASK: Users identify tasks by TITLE only — NEVER ask for task ID. For ONE task use action="update_task" with taskTitle + task fields. For TWO OR MORE named tasks use action="update_tasks" with taskUpdates[] (one entry per task). When user says "all tasks", "every task", "unassign all", etc. use action="update_tasks" with allProjectTasks=true and the shared change in task (e.g. clearAssignee:true for unassign) — NEVER ask them to list titles when they clearly mean every task in PROJECT TASKS.',
+    '11. UPDATE TASK: Users identify tasks by TITLE only — NEVER ask for task ID. For ONE task use action="update_task" with taskTitle + changed fields in proposal.task (priority, status, title, description, assigneeName, clearAssignee) — do NOT use taskUpdates for update_task. For TWO OR MORE named tasks use action="update_tasks" with taskUpdates[] (one entry per task). When user says "all tasks", "every task", "unassign all", etc. use action="update_tasks" with allProjectTasks=true and the shared change in task (e.g. clearAssignee:true for unassign) — NEVER ask them to list titles when they clearly mean every task in PROJECT TASKS.',
     '12. UNASSIGN: set clearAssignee=true on task or each taskUpdates entry. For all tasks: allProjectTasks=true + task.clearAssignee=true.',
     '13. If multiple PROJECT TASKS share the same title, set status="gathering" and ask which one (list each with status/priority to tell them apart).',
     '14. User must review before creation or update — do not claim you already saved anything.',
@@ -370,6 +370,10 @@ function enrichAndValidateResult(
     missingFields = missingFields.filter(
       (f) => f !== 'taskTitle' && f !== 'taskUpdates' && f !== 'task.assigneeName'
     );
+  }
+
+  if (proposal) {
+    normalizeAiProposal(proposal);
   }
 
   if (status !== 'ready' || !proposal) {
