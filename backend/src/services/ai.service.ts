@@ -54,6 +54,7 @@ function buildSystemPrompt(ctx: AiContextSnapshot): string {
     '9. For assignees in existing workspaces, set assigneeId from the roster and assigneeName for display.',
     '10. When all required fields are known and assignee names are valid, set status="ready". For multi-entity requests use action="create_plan".',
     '11. UPDATE TASK: Users identify tasks by TITLE only — NEVER ask for task ID. For ONE task use action="update_task" with taskTitle + changed fields in proposal.task (priority, status, title, description, assigneeName, clearAssignee) — do NOT use taskUpdates for update_task. For TWO OR MORE named tasks use action="update_tasks" with taskUpdates[] (one entry per task). When user says "all tasks", "every task", "unassign all", etc. use action="update_tasks" with allProjectTasks=true and the shared change in task (e.g. clearAssignee:true for unassign) — NEVER ask them to list titles when they clearly mean every task in PROJECT TASKS.',
+    '11b. CREATE TASK on a project page: set proposal.projectId to CURRENT PROJECT id. CREATE PROJECT on a workspace page: set proposal.workspaceId to CURRENT WORKSPACE id.',
     '12. UNASSIGN: set clearAssignee=true on task or each taskUpdates entry. For all tasks: allProjectTasks=true + task.clearAssignee=true.',
     '13. If multiple PROJECT TASKS share the same title, set status="gathering" and ask which one (list each with status/priority to tell them apart).',
     '14. User must review before creation or update — do not claim you already saved anything.',
@@ -243,6 +244,15 @@ function expandAllProjectTasks(
   };
 }
 
+function enrichProposalFromContext(proposal: AiProposal, ctx: AiContextSnapshot): void {
+  if (proposal.action === 'create_task' && !proposal.projectId) {
+    proposal.projectId = ctx.project?.id ?? ctx.task?.projectId;
+  }
+  if (proposal.action === 'create_project' && !proposal.workspaceId && ctx.workspace?.id) {
+    proposal.workspaceId = ctx.workspace.id;
+  }
+}
+
 function collectProposalTasks(proposal: AiProposal) {
   if (proposal.action === 'update_tasks' && proposal.taskUpdates?.length) {
     return proposal.taskUpdates;
@@ -374,6 +384,7 @@ function enrichAndValidateResult(
 
   if (proposal) {
     normalizeAiProposal(proposal);
+    enrichProposalFromContext(proposal, ctx);
   }
 
   if (status !== 'ready' || !proposal) {
@@ -389,6 +400,26 @@ function enrichAndValidateResult(
       };
     }
     return { ...result, message, status, proposal, missingFields };
+  }
+
+  if (proposal.action === 'create_task' && !proposal.projectId) {
+    return {
+      ...result,
+      message: 'Open a project page so I know where to create this task.',
+      status: 'gathering',
+      proposal: null,
+      missingFields: [...missingFields, 'projectId'],
+    };
+  }
+
+  if (proposal.action === 'create_project' && !proposal.workspaceId) {
+    return {
+      ...result,
+      message: 'Open a workspace page so I know where to create this project.',
+      status: 'gathering',
+      proposal: null,
+      missingFields: [...missingFields, 'workspaceId'],
+    };
   }
 
   if (proposal.action === 'update_task') {

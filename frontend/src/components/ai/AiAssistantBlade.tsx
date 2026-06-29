@@ -309,7 +309,19 @@ export function AiAssistantBlade({
     if (!proposal || applying) return;
     setApplying(true);
     try {
-      const res = await aiService.apply(proposal);
+      const proposalToApply: AiProposal = { ...proposal };
+      if (proposalToApply.action === 'create_task' && !proposalToApply.projectId && context.projectId) {
+        proposalToApply.projectId = context.projectId;
+      }
+      if (
+        proposalToApply.action === 'create_project' &&
+        !proposalToApply.workspaceId &&
+        context.workspaceId
+      ) {
+        proposalToApply.workspaceId = context.workspaceId;
+      }
+
+      const res = await aiService.apply(proposalToApply);
       const created = res.data.data!;
       toast.success(res.data.message || 'Created successfully');
 
