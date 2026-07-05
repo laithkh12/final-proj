@@ -3,8 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { CheckSquare, FolderKanban, LayoutList, Sparkles, Users } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { workspaceService } from '@/services/workspace.service';
+import { getDashboardStatCards } from './data';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { AiAssistantPanel } from '@/components/ai/AiAssistantPanel';
 import { buildAiContext } from '@/components/ai/aiAssistantConfig';
@@ -70,36 +71,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          {
-            label: 'Workspaces',
-            value: stats.workspaceCount,
-            icon: Users,
-            color: 'text-indigo-600',
-            href: '/workspaces',
-          },
-          {
-            label: 'Projects',
-            value: stats.projectCount,
-            icon: FolderKanban,
-            color: 'text-purple-600',
-            href: '/projects',
-          },
-          {
-            label: 'Total Tasks',
-            value: stats.totalTasks,
-            icon: CheckSquare,
-            color: 'text-blue-600',
-            href: '/tasks',
-          },
-          {
-            label: 'Done',
-            value: stats.tasksByStatus?.Done || 0,
-            icon: LayoutList,
-            color: 'text-green-600',
-            href: '/tasks',
-          },
-        ].map((card) => (
+        {getDashboardStatCards(stats).map((card) => (
           <Link
             key={card.label}
             href={card.href}
